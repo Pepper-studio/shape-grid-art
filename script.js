@@ -38,17 +38,16 @@ function handleCellClick(cell) {
     return;
   }
 
-  // If there is already a shape, first check if colour changed
+   // If there is already a shape, first check if colour changed
   const shapeColor = existingShape.dataset.color;
 
   if (shapeColor !== currentColor) {
-    // Override colour and reset rotation instead of cycling/removing
+    // Override colour but keep current rotation and click count
     existingShape.style.backgroundColor = currentColor;
     existingShape.dataset.color = currentColor;
-    existingShape.style.transform = 'rotate(0deg)';
-    cell.dataset.clickCount = '0';
     return;
   }
+
 
   // Same colour: rotate up to 3 times, then remove on 4th click
   clickCount += 1;
