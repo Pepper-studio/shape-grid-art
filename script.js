@@ -1,23 +1,30 @@
-let currentColor = '#6490E8'; // default blue
+let currentColor = '#6490E8'; // default main color
 const grid = document.getElementById('grid');
 const downloadBtn = document.getElementById('downloadBtn');
 const clearBtn = document.getElementById('clearBtn');
 
+const gridSize = 4;
+const cellPx = 80; // 320px / 4
+
 // Build 4x4 grid
-for (let i = 0; i < 16; i++) {
+const cells = [];
+for (let i = 0; i < gridSize * gridSize; i++) {
   const cell = document.createElement('div');
   cell.classList.add('cell');
   cell.dataset.clickCount = '0';
+  cell.dataset.row = Math.floor(i / gridSize);
+  cell.dataset.col = i % gridSize;
   cell.addEventListener('click', () => handleCellClick(cell));
   grid.appendChild(cell);
+  cells.push(cell);
 }
 
 // Handle colour selection
 document.querySelectorAll('.color-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    document
-      .querySelectorAll('.color-btn')
-      .forEach((b) => b.classList.remove('active'));
+    document.querySelectorAll('.color-btn').forEach((b) =>
+      b.classList.remove('active')
+    );
     btn.classList.add('active');
     currentColor = btn.getAttribute('data-color');
   });
@@ -27,7 +34,7 @@ function handleCellClick(cell) {
   const existingShape = cell.querySelector('.shape');
   let clickCount = parseInt(cell.dataset.clickCount || '0', 10);
 
-  // If cell is empty, create a new shape in its original orientation
+  // If cell empty → create shape
   if (!existingShape) {
     const shape = document.createElement('div');
     shape.classList.add('shape');
@@ -35,22 +42,18 @@ function handleCellClick(cell) {
     shape.dataset.color = currentColor;
     shape.style.transform = 'rotate(0deg)';
     cell.appendChild(shape);
-    cell.dataset.clickCount = '0';
     return;
   }
 
-   // If there is already a shape, first check if colour changed
+  // If colour changed → override colour only, keep rotation + clickCount
   const shapeColor = existingShape.dataset.color;
-
   if (shapeColor !== currentColor) {
-    // Override colour but keep current rotation and click count
     existingShape.style.backgroundColor = currentColor;
     existingShape.dataset.color = currentColor;
     return;
   }
 
-
-  // Same colour: rotate up to 3 times, then remove on 4th click
+  // Same colour → rotate, then remove after 4th click
   clickCount += 1;
 
   if (clickCount >= 4) {
@@ -63,52 +66,82 @@ function handleCellClick(cell) {
   }
 }
 
-// Clear all shapes from the grid
+// Clear grid button
 clearBtn.addEventListener('click', () => {
-  document.querySelectorAll('.cell').forEach((cell) => {
+  cells.forEach((cell) => {
     const shape = cell.querySelector('.shape');
-    if (shape) {
-      shape.remove();
-    }
+    if (shape) shape.remove();
     cell.dataset.clickCount = '0';
   });
 });
 
-// Download PNG with transparent background and no grid lines
+// Download cropped PNG
 downloadBtn.addEventListener('click', () => {
-  // Check if html2canvas is loaded
-  if (typeof html2canvas === 'undefined') {
-    alert('Image export library failed to load. Please check your internet connection and try again.');
-    return;
-  }
-
-  // Temporarily hide grid borders for clean export
+  // Add exporting class (for hiding grid overlay / borders if needed)
   grid.classList.add('exporting');
 
   html2canvas(grid, {
     backgroundColor: null, // transparent background
-    scale: 2               // higher resolution export
-  })
-    .then((canvas) => {
-      grid.classList.remove('exporting');
+    scale: 2               // higher-res export
+  }).then((canvas) => {
+    grid.classList.remove('exporting');
 
-      try {
-        const link = document.createElement('a');
-        link.download = 'grid-art.png';
-        link.href = canvas.toDataURL('image/png');
+    const { minRow, maxRow, minCol, maxCol } = findUsedBounds();
 
-        // Fallback for some browsers: append then click
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } catch (err) {
-        console.error('Download failed, opening image in new tab instead.', err);
-        window.open(canvas.toDataURL('image/png'), '_blank');
-      }
-    })
-    .catch((error) => {
-      grid.classList.remove('exporting');
-      console.error('Error generating PNG:', error);
-      alert('Something went wrong while generating the image.');
-    });
+    // No shapes at all
+    if (minRow === Infinity) {
+      alert('No artwork found! Place shapes before exporting.');
+      return;
+    }
+
+    // Compute crop area in the full canvas (scaled)
+    const cropX = minCol * cellPx * 2;
+    const cropY = minRow * cellPx * 2;
+    const cropW = (maxCol - minCol + 1) * cellPx * 2;
+    const cropH = (maxRow - minRow + 1) * cellPx * 2;
+
+    // Create a new canvas just for the cropped region
+    const cropCanvas = document.createElement('canvas');
+    cropCanvas.width = cropW;
+    cropCanvas.height = cropH;
+    const ctx = cropCanvas.getContext('2d');
+
+    ctx.drawImage(
+      canvas,
+      cropX,
+      cropY,
+      cropW,
+      cropH,
+      0,
+      0,
+      cropW,
+      cropH
+    );
+
+    const link = document.createElement('a');
+    link.download = 'grid-art.png';
+    link.href = cropCanvas.toDataURL('image/png');
+    link.click();
+  });
 });
+
+// Find tight bounds (min/max row/col that contain shapes)
+function findUsedBounds() {
+  let minRow = Infinity;
+  let maxRow = -Infinity;
+  let minCol = Infinity;
+  let maxCol = -Infinity;
+
+  cells.forEach((cell) => {
+    if (cell.querySelector('.shape')) {
+      const row = parseInt(cell.dataset.row, 10);
+      const col = parseInt(cell.dataset.col, 10);
+      minRow = Math.min(minRow, row);
+      maxRow = Math.max(maxRow, row);
+      minCol = Math.min(minCol, col);
+      maxCol = Math.max(maxCol, col);
+    }
+  });
+
+  return { minRow, maxRow, minCol, maxCol };
+}
