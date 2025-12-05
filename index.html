@@ -7,13 +7,26 @@
 </head>
 <body>
   <h1>Shape Grid Art</h1>
+
+  <p class="instructions">
+    Click a colour, then click on a cell to place a rounded shape.<br />
+    Click the same cell to rotate the shape. After four clicks, it disappears.
+  </p>
+
   <div class="controls">
-    <button data-color="red">Red</button>
-    <button data-color="blue">Blue</button>
-    <button data-color="yellow">Yellow</button>
+    <button class="color-btn active" data-color="#ff4b4b">Red</button>
+    <button class="color-btn" data-color="#4b7bff">Blue</button>
+    <button class="color-btn" data-color="#ffcf4b">Yellow</button>
   </div>
+
   <div class="grid" id="grid"></div>
-  <button id="downloadBtn">Download PNG</button>
+
+  <button id="downloadBtn" class="download-btn">Download PNG</button>
+
+  <!-- html2canvas for PNG export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+          integrity="sha512-BNa5zsxgJavGKnz03Wx/ju0RduCMsZ/HXXIQK5vCk1vZ1tcHTul3e8DqRLVQjaxAg/P6nxsVXniPXT3v4rQGQw=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="script.js"></script>
 </body>
 </html>
