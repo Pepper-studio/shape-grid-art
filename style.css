@@ -51,9 +51,29 @@ h1 {
   margin: 0 auto 16px auto;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0;          /* ⬅ remove spacing between cells */
-  padding: 0;      /* ⬅ remove inner padding */
+  gap: 0;              /* no space between cells */
+  padding: 0;          /* no padding */
   background: transparent;
+  position: relative;  /* <-- important for the overlay */
+}
+
+/* Overlay grid only for UI (not exported) */
+.grid::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgba(0, 0, 0, 0.15) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(0, 0, 0, 0.15) 1px, transparent 1px);
+  background-size: calc(100% / 4) calc(100% / 4); /* 4x4 grid */
+  pointer-events: none;  /* don’t block clicks */
+  z-index: 0;            /* sit behind the cells/shapes */
+  opacity: 0.4;          /* adjust strength if needed */
+}
+
+/* Hide overlay when exporting PNG */
+.grid.exporting::before {
+  opacity: 0;
 }
 
 .cell {
