@@ -1,6 +1,7 @@
 let currentColor = '#ff4b4b'; // default red
 const grid = document.getElementById('grid');
 const downloadBtn = document.getElementById('downloadBtn');
+const clearBtn = document.getElementById('clearBtn');
 
 // Build 4x4 grid
 for (let i = 0; i < 16; i++) {
@@ -61,6 +62,17 @@ function handleCellClick(cell) {
     cell.dataset.clickCount = String(clickCount);
   }
 }
+
+// Clear all shapes from the grid
+clearBtn.addEventListener('click', () => {
+  document.querySelectorAll('.cell').forEach((cell) => {
+    const shape = cell.querySelector('.shape');
+    if (shape) {
+      shape.remove();
+    }
+    cell.dataset.clickCount = '0';
+  });
+});
 
 // Download PNG with transparent background and no grid lines
 downloadBtn.addEventListener('click', () => {
