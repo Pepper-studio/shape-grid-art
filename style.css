@@ -128,7 +128,7 @@ h1 {
   position: absolute;
   inset: 0;                 /* ⬅ fill the whole cell */
   background-color: #ff4b4b;
-  border-radius: 30% 0 0 0; /* only one rounded corner */
+  border-radius: 0 40% 0 0; /* only one rounded corner */
   transform-origin: 50% 50%;
   transform: rotate(0deg);
   transition: transform 0.18s ease;
