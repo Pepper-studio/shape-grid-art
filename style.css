@@ -51,9 +51,9 @@ h1 {
   margin: 0 auto 16px auto;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-  background: transparent; /* no solid background for export */
-  padding: 4px;
+  gap: 0;          /* ⬅ remove spacing between cells */
+  padding: 0;      /* ⬅ remove inner padding */
+  background: transparent;
 }
 
 .cell {
@@ -73,9 +73,9 @@ h1 {
 /* Shape: square with only one rounded corner, rotated so the rounded tip is obvious */
 .shape {
   position: absolute;
-  inset: 10%;
+  inset: 0;                 /* ⬅ fill the whole cell */
   background-color: #ff4b4b;
-  border-radius: 0 0 0 0; /* only one corner rounded */
+  border-radius: 60% 0 0 0; /* only one rounded corner */
   transform-origin: 50% 50%;
   transform: rotate(0deg);
   transition: transform 0.18s ease;
