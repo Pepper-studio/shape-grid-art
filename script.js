@@ -31,17 +31,29 @@ function handleCellClick(cell) {
     const shape = document.createElement('div');
     shape.classList.add('shape');
     shape.style.backgroundColor = currentColor;
+    shape.dataset.color = currentColor;
     shape.style.transform = 'rotate(0deg)';
     cell.appendChild(shape);
     cell.dataset.clickCount = '0';
     return;
   }
 
-  // If there is already a shape, rotate it up to 3 times, then remove it
+  // If there is already a shape, first check if colour changed
+  const shapeColor = existingShape.dataset.color;
+
+  if (shapeColor !== currentColor) {
+    // Override colour and reset rotation instead of cycling/removing
+    existingShape.style.backgroundColor = currentColor;
+    existingShape.dataset.color = currentColor;
+    existingShape.style.transform = 'rotate(0deg)';
+    cell.dataset.clickCount = '0';
+    return;
+  }
+
+  // Same colour: rotate up to 3 times, then remove on 4th click
   clickCount += 1;
 
   if (clickCount >= 4) {
-    // After 4th click (0° → 90° → 180° → 270°), remove shape and reset
     existingShape.remove();
     cell.dataset.clickCount = '0';
   } else {
@@ -53,20 +65,35 @@ function handleCellClick(cell) {
 
 // Download PNG with transparent background and no grid lines
 downloadBtn.addEventListener('click', () => {
+  // Check if html2canvas is loaded
+  if (typeof html2canvas === 'undefined') {
+    alert('Image export library failed to load. Please check your internet connection and try again.');
+    return;
+  }
+
   // Temporarily hide grid borders for clean export
   grid.classList.add('exporting');
 
   html2canvas(grid, {
     backgroundColor: null, // transparent background
-    scale: 2             // higher resolution export
+    scale: 2               // higher resolution export
   })
     .then((canvas) => {
       grid.classList.remove('exporting');
 
-      const link = document.createElement('a');
-      link.download = 'grid-art.png';
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+      try {
+        const link = document.createElement('a');
+        link.download = 'grid-art.png';
+        link.href = canvas.toDataURL('image/png');
+
+        // Fallback for some browsers: append then click
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } catch (err) {
+        console.error('Download failed, opening image in new tab instead.', err);
+        window.open(canvas.toDataURL('image/png'), '_blank');
+      }
     })
     .catch((error) => {
       grid.classList.remove('exporting');

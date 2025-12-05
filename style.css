@@ -70,11 +70,14 @@ h1 {
   border-color: transparent;
 }
 
+/* Shape: square with only one rounded corner, rotated so the rounded tip is obvious */
 .shape {
   position: absolute;
-  inset: 14%;
-  border-radius: 50%; /* rounded 50% */
+  inset: 10%;
   background-color: #ff4b4b;
+  border-radius: 60% 0 0 0; /* only one corner rounded */
+  transform-origin: 50% 50%;
+  transform: rotate(0deg);
   transition: transform 0.18s ease;
 }
 
