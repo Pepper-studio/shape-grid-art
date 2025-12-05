@@ -1,4 +1,4 @@
-let currentColor = '#ff4b4b'; // default red
+let currentColor = '#6490E8'; // default blue
 const grid = document.getElementById('grid');
 const downloadBtn = document.getElementById('downloadBtn');
 const clearBtn = document.getElementById('clearBtn');
