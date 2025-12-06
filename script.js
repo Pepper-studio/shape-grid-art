@@ -27,7 +27,6 @@ for (let i = 0; i < gridSize * gridSize; i++) {
 // ---------- Colour selection ----------
 document.querySelectorAll('.color-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    // normal colour button active styling
     document.querySelectorAll('.color-btn').forEach((b) =>
       b.classList.remove('active')
     );
@@ -41,10 +40,12 @@ document.querySelectorAll('.color-btn').forEach((btn) => {
 });
 
 // ---------- Eraser toggle ----------
-eraserBtn.addEventListener('click', () => {
-  isErasing = !isErasing;
-  eraserBtn.classList.toggle('active', isErasing);
-});
+if (eraserBtn) {
+  eraserBtn.addEventListener('click', () => {
+    isErasing = !isErasing;
+    eraserBtn.classList.toggle('active', isErasing);
+  });
+}
 
 // ---------- History helpers ----------
 function pushState() {
@@ -142,70 +143,76 @@ function handleCellClick(cell) {
 }
 
 // ---------- Clear grid ----------
-clearBtn.addEventListener('click', () => {
-  pushState();
+if (clearBtn) {
+  clearBtn.addEventListener('click', () => {
+    pushState();
 
-  cells.forEach((cell) => {
-    const shape = cell.querySelector('.shape');
-    if (shape) shape.remove();
-    cell.dataset.clickCount = '0';
+    cells.forEach((cell) => {
+      const shape = cell.querySelector('.shape');
+      if (shape) shape.remove();
+      cell.dataset.clickCount = '0';
+    });
   });
-});
+}
 
 // ---------- Undo ----------
-undoBtn.addEventListener('click', () => {
-  const last = history.pop();
-  if (!last) return;
-  restoreState(last);
-});
+if (undoBtn) {
+  undoBtn.addEventListener('click', () => {
+    const last = history.pop();
+    if (!last) return;
+    restoreState(last);
+  });
+}
 
 // ---------- Download cropped PNG ----------
-downloadBtn.addEventListener('click', () => {
-  grid.classList.add('exporting');
+if (downloadBtn) {
+  downloadBtn.addEventListener('click', () => {
+    grid.classList.add('exporting');
 
-  html2canvas(grid, {
-    backgroundColor: null, // transparent background
-    scale: 2               // higher-res export
-  }).then((canvas) => {
-    grid.classList.remove('exporting');
+    html2canvas(grid, {
+      backgroundColor: null, // transparent background
+      scale: 2               // higher-res export
+    }).then((canvas) => {
+      grid.classList.remove('exporting');
 
-    const { minRow, maxRow, minCol, maxCol } = findUsedBounds();
+      const { minRow, maxRow, minCol, maxCol } = findUsedBounds();
 
-    // No shapes at all
-    if (minRow === Infinity) {
-      alert('No artwork found! Place shapes before exporting.');
-      return;
-    }
+      // No shapes at all
+      if (minRow === Infinity) {
+        alert('No artwork found! Place shapes before exporting.');
+        return;
+      }
 
-    // Compute crop area in the full canvas (scaled)
-    const cropX = minCol * cellPx * 2;
-    const cropY = minRow * cellPx * 2;
-    const cropW = (maxCol - minCol + 1) * cellPx * 2;
-    const cropH = (maxRow - minRow + 1) * cellPx * 2;
+      // Compute crop area in the full canvas (scaled)
+      const cropX = minCol * cellPx * 2;
+      const cropY = minRow * cellPx * 2;
+      const cropW = (maxCol - minCol + 1) * cellPx * 2;
+      const cropH = (maxRow - minRow + 1) * cellPx * 2;
 
-    const cropCanvas = document.createElement('canvas');
-    cropCanvas.width = cropW;
-    cropCanvas.height = cropH;
-    const ctx = cropCanvas.getContext('2d');
+      const cropCanvas = document.createElement('canvas');
+      cropCanvas.width = cropW;
+      cropCanvas.height = cropH;
+      const ctx = cropCanvas.getContext('2d');
 
-    ctx.drawImage(
-      canvas,
-      cropX,
-      cropY,
-      cropW,
-      cropH,
-      0,
-      0,
-      cropW,
-      cropH
-    );
+      ctx.drawImage(
+        canvas,
+        cropX,
+        cropY,
+        cropW,
+        cropH,
+        0,
+        0,
+        cropW,
+        cropH
+      );
 
-    const link = document.createElement('a');
-    link.download = 'grid-art.png';
-    link.href = cropCanvas.toDataURL('image/png');
-    link.click();
+      const link = document.createElement('a');
+      link.download = 'grid-art.png';
+      link.href = cropCanvas.toDataURL('image/png');
+      link.click();
+    });
   });
-});
+}
 
 // ---------- Find tight bounds ----------
 function findUsedBounds() {
