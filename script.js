@@ -2,13 +2,11 @@ let currentColor = '#6490E8'; // default main color
 const grid = document.getElementById('grid');
 const downloadBtn = document.getElementById('downloadBtn');
 const clearBtn = document.getElementById('clearBtn');
-const eraserBtn = document.getElementById('eraserBtn');
 const undoBtn = document.getElementById('undoBtn');
 
 const gridSize = 4;
 const cellPx = 80; // 320px / 4
 
-let isErasing = false;
 const cells = [];
 const history = [];
 
@@ -32,20 +30,8 @@ document.querySelectorAll('.color-btn').forEach((btn) => {
     );
     btn.classList.add('active');
     currentColor = btn.getAttribute('data-color');
-
-    // turning on a colour cancels eraser mode
-    isErasing = false;
-    if (eraserBtn) eraserBtn.classList.remove('active');
   });
 });
-
-// ---------- Eraser toggle ----------
-if (eraserBtn) {
-  eraserBtn.addEventListener('click', () => {
-    isErasing = !isErasing;
-    eraserBtn.classList.toggle('active', isErasing);
-  });
-}
 
 // ---------- History helpers ----------
 function pushState() {
@@ -98,17 +84,6 @@ function handleCellClick(cell) {
 
   const existingShape = cell.querySelector('.shape');
   let clickCount = parseInt(cell.dataset.clickCount || '0', 10);
-
-  // Eraser mode: remove shape if present
-  if (isErasing) {
-    if (existingShape) {
-      existingShape.remove();
-      cell.dataset.clickCount = '0';
-    }
-    return;
-  }
-
-  // Normal mode:
 
   // If cell empty → create shape
   if (!existingShape) {
