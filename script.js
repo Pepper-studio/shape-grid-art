@@ -2,11 +2,13 @@ let currentColor = '#6490E8'; // default main color
 const grid = document.getElementById('grid');
 const downloadBtn = document.getElementById('downloadBtn');
 const clearBtn = document.getElementById('clearBtn');
+const eraserBtn = document.getElementById('eraserBtn');
 const undoBtn = document.getElementById('undoBtn');
 
 const gridSize = 4;
-const cellPx = 80; // 320px / 4
+const cellPx = 80; // matches 320px grid / 4 cells
 
+let isErasing = false;
 const cells = [];
 const history = [];
 
@@ -25,12 +27,23 @@ for (let i = 0; i < gridSize * gridSize; i++) {
 // ---------- Colour selection ----------
 document.querySelectorAll('.color-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
+    // normal colour button active styling
     document.querySelectorAll('.color-btn').forEach((b) =>
       b.classList.remove('active')
     );
     btn.classList.add('active');
     currentColor = btn.getAttribute('data-color');
+
+    // turning on a colour cancels eraser mode
+    isErasing = false;
+    if (eraserBtn) eraserBtn.classList.remove('active');
   });
+});
+
+// ---------- Eraser toggle ----------
+eraserBtn.addEventListener('click', () => {
+  isErasing = !isErasing;
+  eraserBtn.classList.toggle('active', isErasing);
 });
 
 // ---------- History helpers ----------
@@ -85,6 +98,17 @@ function handleCellClick(cell) {
   const existingShape = cell.querySelector('.shape');
   let clickCount = parseInt(cell.dataset.clickCount || '0', 10);
 
+  // Eraser mode: remove shape if present
+  if (isErasing) {
+    if (existingShape) {
+      existingShape.remove();
+      cell.dataset.clickCount = '0';
+    }
+    return;
+  }
+
+  // Normal mode:
+
   // If cell empty → create shape
   if (!existingShape) {
     const shape = document.createElement('div');
@@ -118,76 +142,109 @@ function handleCellClick(cell) {
 }
 
 // ---------- Clear grid ----------
-if (clearBtn) {
-  clearBtn.addEventListener('click', () => {
-    pushState();
+clearBtn.addEventListener('click', () => {
+  pushState();
 
-    cells.forEach((cell) => {
-      const shape = cell.querySelector('.shape');
-      if (shape) shape.remove();
-      cell.dataset.clickCount = '0';
-    });
+  cells.forEach((cell) => {
+    const shape = cell.querySelector('.shape');
+    if (shape) shape.remove();
+    cell.dataset.clickCount = '0';
   });
-}
+});
 
 // ---------- Undo ----------
-if (undoBtn) {
-  undoBtn.addEventListener('click', () => {
-    const last = history.pop();
-    if (!last) return;
-    restoreState(last);
+undoBtn.addEventListener('click', () => {
+  const last = history.pop();
+  if (!last) return;
+  restoreState(last);
+});
+
+// ---------- Download as tight-cropped SVG ----------
+downloadBtn.addEventListener('click', () => {
+  const { minRow, maxRow, minCol, maxCol } = findUsedBounds();
+
+  // No shapes at all
+  if (minRow === Infinity) {
+    alert('No artwork found! Place shapes before exporting.');
+    return;
+  }
+
+  const cols = maxCol - minCol + 1;
+  const rows = maxRow - minRow + 1;
+  const svgWidth = cols * cellPx;
+  const svgHeight = rows * cellPx;
+
+  // Build SVG content
+  const shapesSvg = [];
+
+  cells.forEach((cell) => {
+    const shapeEl = cell.querySelector('.shape');
+    if (!shapeEl) return;
+
+    const row = parseInt(cell.dataset.row, 10);
+    const col = parseInt(cell.dataset.col, 10);
+
+    const color = shapeEl.dataset.color || currentColor;
+
+    // Parse rotation angle from style.transform, e.g. "rotate(90deg)"
+    let angle = 0;
+    const transformVal = shapeEl.style.transform || '';
+    const match = transformVal.match(/rotate\\(([-0-9.]+)deg\\)/);
+    if (match) {
+      angle = parseFloat(match[1]) || 0;
+    }
+
+    // Position of this cell inside the cropped area
+    const x = (col - minCol) * cellPx;
+    const y = (row - minRow) * cellPx;
+
+    // Shape path: rectangle with one rounded corner (top-left in local coords)
+    const r = cellPx / 2; // radius
+    const w = cellPx;
+    const h = cellPx;
+
+    const d = [
+      `M 0 ${r}`,
+      `A ${r} ${r} 0 0 1 ${r} 0`,
+      `L ${w} 0`,
+      `L ${w} ${h}`,
+      `L 0 ${h}`,
+      'Z'
+    ].join(' ');
+
+    // Center of the cell for rotation
+    const cx = cellPx / 2;
+    const cy = cellPx / 2;
+
+    // Group with translate + rotate
+    const pathSvg = `
+      <g transform="translate(${x} ${y}) rotate(${angle} ${cx} ${cy})">
+        <path d="${d}" fill="${color}" />
+      </g>
+    `;
+    shapesSvg.push(pathSvg);
   });
-}
 
-// ---------- Download cropped PNG ----------
-if (downloadBtn) {
-  downloadBtn.addEventListener('click', () => {
-    grid.classList.add('exporting');
+  const svgContent = `
+    <svg xmlns="http://www.w3.org/2000/svg"
+         width="${svgWidth}" height="${svgHeight}"
+         viewBox="0 0 ${svgWidth} ${svgHeight}">
+      ${shapesSvg.join('\\n')}
+    </svg>
+  `.trim();
 
-    html2canvas(grid, {
-      backgroundColor: null, // transparent background
-      scale: 2               // higher-res export
-    }).then((canvas) => {
-      grid.classList.remove('exporting');
+  const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+  const url = URL.createObjectURL(blob);
 
-      const { minRow, maxRow, minCol, maxCol } = findUsedBounds();
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'grid-art.svg';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 
-      // No shapes at all
-      if (minRow === Infinity) {
-        alert('No artwork found! Place shapes before exporting.');
-        return;
-      }
-
-      // Compute crop area in the full canvas (scaled)
-      const cropX = minCol * cellPx * 2;
-      const cropY = minRow * cellPx * 2;
-      const cropW = (maxCol - minCol + 1) * cellPx * 2;
-      const cropH = (maxRow - minRow + 1) * cellPx * 2;
-
-      const cropCanvas = document.createElement('canvas');
-      cropCanvas.width = cropW;
-      cropCanvas.height = cropH;
-      const ctx = cropCanvas.getContext('2d');
-
-      ctx.drawImage(
-        canvas,
-        cropX,
-        cropY,
-        cropW,
-        cropH,
-        0,
-        0,
-        cropW,
-        cropH
-      );
-
-      const link = document.createElement('a');
-      link.download = 'grid-art.png';
-      link.href = cropCanvas.toDataURL('image/png');
-      link.click();
-    });
-  });
-}
+  URL.revokeObjectURL(url);
+});
 
 // ---------- Find tight bounds ----------
 function findUsedBounds() {
