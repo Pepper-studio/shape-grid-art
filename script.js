@@ -1,14 +1,13 @@
 let currentColor = '#6490E8'; // default main color
+
 const grid = document.getElementById('grid');
 const downloadBtn = document.getElementById('downloadBtn');
 const clearBtn = document.getElementById('clearBtn');
-const eraserBtn = document.getElementById('eraserBtn');
 const undoBtn = document.getElementById('undoBtn');
 
 const gridSize = 4;
 const cellPx = 80; // matches 320px grid / 4 cells
 
-let isErasing = false;
 const cells = [];
 const history = [];
 
@@ -27,23 +26,13 @@ for (let i = 0; i < gridSize * gridSize; i++) {
 // ---------- Colour selection ----------
 document.querySelectorAll('.color-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    // normal colour button active styling
+    // update active button
     document.querySelectorAll('.color-btn').forEach((b) =>
       b.classList.remove('active')
     );
     btn.classList.add('active');
     currentColor = btn.getAttribute('data-color');
-
-    // turning on a colour cancels eraser mode
-    isErasing = false;
-    if (eraserBtn) eraserBtn.classList.remove('active');
   });
-});
-
-// ---------- Eraser toggle ----------
-eraserBtn.addEventListener('click', () => {
-  isErasing = !isErasing;
-  eraserBtn.classList.toggle('active', isErasing);
 });
 
 // ---------- History helpers ----------
@@ -53,7 +42,7 @@ function pushState() {
     if (!shape) return null;
     return {
       color: shape.dataset.color,
-      rotation: shape.style.transform || 'rotate(0deg)'
+      rotation: shape.style.transform || 'rotate(0deg)',
     };
   });
 
@@ -61,7 +50,7 @@ function pushState() {
 
   history.push({ snapshot, clickCounts });
 
-  // Avoid unbounded growth
+  // prevent infinite growth
   if (history.length > 100) {
     history.shift();
   }
@@ -98,17 +87,6 @@ function handleCellClick(cell) {
   const existingShape = cell.querySelector('.shape');
   let clickCount = parseInt(cell.dataset.clickCount || '0', 10);
 
-  // Eraser mode: remove shape if present
-  if (isErasing) {
-    if (existingShape) {
-      existingShape.remove();
-      cell.dataset.clickCount = '0';
-    }
-    return;
-  }
-
-  // Normal mode:
-
   // If cell empty → create shape
   if (!existingShape) {
     const shape = document.createElement('div');
@@ -142,22 +120,26 @@ function handleCellClick(cell) {
 }
 
 // ---------- Clear grid ----------
-clearBtn.addEventListener('click', () => {
-  pushState();
+if (clearBtn) {
+  clearBtn.addEventListener('click', () => {
+    pushState();
 
-  cells.forEach((cell) => {
-    const shape = cell.querySelector('.shape');
-    if (shape) shape.remove();
-    cell.dataset.clickCount = '0';
+    cells.forEach((cell) => {
+      const shape = cell.querySelector('.shape');
+      if (shape) shape.remove();
+      cell.dataset.clickCount = '0';
+    });
   });
-});
+}
 
 // ---------- Undo ----------
-undoBtn.addEventListener('click', () => {
-  const last = history.pop();
-  if (!last) return;
-  restoreState(last);
-});
+if (undoBtn) {
+  undoBtn.addEventListener('click', () => {
+    const last = history.pop();
+    if (!last) return;
+    restoreState(last);
+  });
+}
 
 // ---------- Download as tight-cropped SVG ----------
 downloadBtn.addEventListener('click', () => {
@@ -174,7 +156,6 @@ downloadBtn.addEventListener('click', () => {
   const svgWidth = cols * cellPx;
   const svgHeight = rows * cellPx;
 
-  // Build SVG content
   const shapesSvg = [];
 
   cells.forEach((cell) => {
@@ -183,7 +164,6 @@ downloadBtn.addEventListener('click', () => {
 
     const row = parseInt(cell.dataset.row, 10);
     const col = parseInt(cell.dataset.col, 10);
-
     const color = shapeEl.dataset.color || currentColor;
 
     // Parse rotation angle from style.transform, e.g. "rotate(90deg)"
@@ -199,7 +179,7 @@ downloadBtn.addEventListener('click', () => {
     const y = (row - minRow) * cellPx;
 
     // Shape path: rectangle with one rounded corner (top-left in local coords)
-    const r = cellPx / 2; // radius
+    const r = cellPx / 2;
     const w = cellPx;
     const h = cellPx;
 
@@ -209,14 +189,13 @@ downloadBtn.addEventListener('click', () => {
       `L ${w} 0`,
       `L ${w} ${h}`,
       `L 0 ${h}`,
-      'Z'
+      'Z',
     ].join(' ');
 
     // Center of the cell for rotation
     const cx = cellPx / 2;
     const cy = cellPx / 2;
 
-    // Group with translate + rotate
     const pathSvg = `
       <g transform="translate(${x} ${y}) rotate(${angle} ${cx} ${cy})">
         <path d="${d}" fill="${color}" />
@@ -229,7 +208,7 @@ downloadBtn.addEventListener('click', () => {
     <svg xmlns="http://www.w3.org/2000/svg"
          width="${svgWidth}" height="${svgHeight}"
          viewBox="0 0 ${svgWidth} ${svgHeight}">
-      ${shapesSvg.join('\\n')}
+      ${shapesSvg.join('\n')}
     </svg>
   `.trim();
 
