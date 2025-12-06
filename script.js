@@ -2,12 +2,17 @@ let currentColor = '#6490E8'; // default main color
 const grid = document.getElementById('grid');
 const downloadBtn = document.getElementById('downloadBtn');
 const clearBtn = document.getElementById('clearBtn');
+const eraserBtn = document.getElementById('eraserBtn');
+const undoBtn = document.getElementById('undoBtn');
 
 const gridSize = 4;
 const cellPx = 80; // 320px / 4
 
-// Build 4x4 grid
+let isErasing = false;
 const cells = [];
+const history = [];
+
+// ---------- Build 4x4 grid ----------
 for (let i = 0; i < gridSize * gridSize; i++) {
   const cell = document.createElement('div');
   cell.classList.add('cell');
@@ -19,20 +24,90 @@ for (let i = 0; i < gridSize * gridSize; i++) {
   cells.push(cell);
 }
 
-// Handle colour selection
+// ---------- Colour selection ----------
 document.querySelectorAll('.color-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
+    // normal colour button active styling
     document.querySelectorAll('.color-btn').forEach((b) =>
       b.classList.remove('active')
     );
     btn.classList.add('active');
     currentColor = btn.getAttribute('data-color');
+
+    // turning on a colour cancels eraser mode
+    isErasing = false;
+    if (eraserBtn) eraserBtn.classList.remove('active');
   });
 });
 
+// ---------- Eraser toggle ----------
+eraserBtn.addEventListener('click', () => {
+  isErasing = !isErasing;
+  eraserBtn.classList.toggle('active', isErasing);
+});
+
+// ---------- History helpers ----------
+function pushState() {
+  const snapshot = cells.map((cell) => {
+    const shape = cell.querySelector('.shape');
+    if (!shape) return null;
+    return {
+      color: shape.dataset.color,
+      rotation: shape.style.transform || 'rotate(0deg)'
+    };
+  });
+
+  const clickCounts = cells.map((cell) => cell.dataset.clickCount || '0');
+
+  history.push({ snapshot, clickCounts });
+
+  // Avoid unbounded growth
+  if (history.length > 100) {
+    history.shift();
+  }
+}
+
+function restoreState(state) {
+  cells.forEach((cell, index) => {
+    const info = state.snapshot[index];
+    const clickCount = state.clickCounts[index] || '0';
+    cell.dataset.clickCount = clickCount;
+
+    const existing = cell.querySelector('.shape');
+    if (info === null) {
+      if (existing) existing.remove();
+    } else {
+      let shape = existing;
+      if (!shape) {
+        shape = document.createElement('div');
+        shape.classList.add('shape');
+        cell.appendChild(shape);
+      }
+      shape.style.backgroundColor = info.color;
+      shape.dataset.color = info.color;
+      shape.style.transform = info.rotation;
+    }
+  });
+}
+
+// ---------- Cell click behaviour ----------
 function handleCellClick(cell) {
+  // Save state before any modification
+  pushState();
+
   const existingShape = cell.querySelector('.shape');
   let clickCount = parseInt(cell.dataset.clickCount || '0', 10);
+
+  // Eraser mode: remove shape if present
+  if (isErasing) {
+    if (existingShape) {
+      existingShape.remove();
+      cell.dataset.clickCount = '0';
+    }
+    return;
+  }
+
+  // Normal mode:
 
   // If cell empty → create shape
   if (!existingShape) {
@@ -66,8 +141,10 @@ function handleCellClick(cell) {
   }
 }
 
-// Clear grid button
+// ---------- Clear grid ----------
 clearBtn.addEventListener('click', () => {
+  pushState();
+
   cells.forEach((cell) => {
     const shape = cell.querySelector('.shape');
     if (shape) shape.remove();
@@ -75,9 +152,15 @@ clearBtn.addEventListener('click', () => {
   });
 });
 
-// Download cropped PNG
+// ---------- Undo ----------
+undoBtn.addEventListener('click', () => {
+  const last = history.pop();
+  if (!last) return;
+  restoreState(last);
+});
+
+// ---------- Download cropped PNG ----------
 downloadBtn.addEventListener('click', () => {
-  // Add exporting class (for hiding grid overlay / borders if needed)
   grid.classList.add('exporting');
 
   html2canvas(grid, {
@@ -100,7 +183,6 @@ downloadBtn.addEventListener('click', () => {
     const cropW = (maxCol - minCol + 1) * cellPx * 2;
     const cropH = (maxRow - minRow + 1) * cellPx * 2;
 
-    // Create a new canvas just for the cropped region
     const cropCanvas = document.createElement('canvas');
     cropCanvas.width = cropW;
     cropCanvas.height = cropH;
@@ -125,7 +207,7 @@ downloadBtn.addEventListener('click', () => {
   });
 });
 
-// Find tight bounds (min/max row/col that contain shapes)
+// ---------- Find tight bounds ----------
 function findUsedBounds() {
   let minRow = Infinity;
   let maxRow = -Infinity;
