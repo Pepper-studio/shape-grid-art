@@ -10,11 +10,6 @@ const rand3x3Btn = document.getElementById('rand3x3Btn');
 const randBannerBtn = document.getElementById('randBannerBtn');
 const randFullBtn = document.getElementById('randFullBtn');
 
-// colour override buttons
-const allBlueBtn = document.getElementById('allBlueBtn');
-const allPurpleBtn = document.getElementById('allPurpleBtn');
-const allYellowBtn = document.getElementById('allYellowBtn');
-
 // 🔹 GRID SETTINGS
 const gridSize = 8;   // 8x8 grid
 const cellPx = 80;    // 640px grid / 8 cells
@@ -56,7 +51,7 @@ function pushState() {
     };
   });
 
-  const clickCounts = cells.map((cell) => cell.dataset.clickCount || '0');
+  const clickCounts = cells.map((cell) => cell.dataset.clickCount || '0';
 
   history.push({ snapshot, clickCounts });
 
@@ -124,29 +119,6 @@ function createShapeInCell(cell, color, angle) {
 
   const clicks = ((angle / 90) % 4 + 4) % 4; // normalize 0–3
   cell.dataset.clickCount = String(clicks);
-}
-
-// override all existing shapes with one colour
-function overrideAll(color) {
-  pushState();
-  cells.forEach((cell) => {
-    const shape = cell.querySelector('.shape');
-    if (shape) {
-      shape.style.backgroundColor = color;
-      shape.dataset.color = color;
-    }
-  });
-}
-
-// attach colour override buttons
-if (allBlueBtn) {
-  allBlueBtn.addEventListener('click', () => overrideAll('#6490E8'));
-}
-if (allPurpleBtn) {
-  allPurpleBtn.addEventListener('click', () => overrideAll('#DCC6EA'));
-}
-if (allYellowBtn) {
-  allYellowBtn.addEventListener('click', () => overrideAll('#FDCF41'));
 }
 
 // ---------- Cell click behaviour ----------
@@ -282,7 +254,7 @@ if (randFullBtn) {
 
 // ---------- Download as tight-cropped SVG ----------
 downloadBtn.addEventListener('click', () => {
-  const { minRow, maxRow, maxCol, minCol } = findUsedBounds();
+  const { minRow, maxRow, minCol, maxCol } = findUsedBounds();
 
   // No shapes at all
   if (minRow === Infinity) {
