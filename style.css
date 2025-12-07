@@ -78,7 +78,7 @@ h1 {
   height: 320px;
   margin: 0 auto 16px auto;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(8, 1fr);
   gap: 0;              /* no space between cells */
   padding: 0;          /* no padding */
   background: transparent;
