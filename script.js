@@ -5,13 +5,19 @@ const downloadBtn = document.getElementById('downloadBtn');
 const clearBtn = document.getElementById('clearBtn');
 const undoBtn = document.getElementById('undoBtn');
 
+// 🔹 GRID SETTINGS
+// If you change grid size later (e.g. 8x8), update BOTH lines below:
+//
+// const gridSize = 8;
+// const cellPx = 40; // or keep cells same size and grow the grid in CSS
+//
 const gridSize = 4;
 const cellPx = 80; // matches 320px grid / 4 cells
 
 const cells = [];
 const history = [];
 
-// ---------- Build 4x4 grid ----------
+// ---------- Build grid ----------
 for (let i = 0; i < gridSize * gridSize; i++) {
   const cell = document.createElement('div');
   cell.classList.add('cell');
@@ -26,7 +32,6 @@ for (let i = 0; i < gridSize * gridSize; i++) {
 // ---------- Colour selection ----------
 document.querySelectorAll('.color-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
-    // update active button
     document.querySelectorAll('.color-btn').forEach((b) =>
       b.classList.remove('active')
     );
@@ -50,7 +55,6 @@ function pushState() {
 
   history.push({ snapshot, clickCounts });
 
-  // prevent infinite growth
   if (history.length > 100) {
     history.shift();
   }
