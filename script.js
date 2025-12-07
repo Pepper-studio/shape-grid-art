@@ -11,8 +11,8 @@ const undoBtn = document.getElementById('undoBtn');
 // const gridSize = 8;
 // const cellPx = 40; // or keep cells same size and grow the grid in CSS
 //
-const gridSize = 4;
-const cellPx = 80; // matches 320px grid / 4 cells
+const gridSize = 8;  // was 4
+const cellPx = 80;   // keep 80 to keep same shape scale
 
 const cells = [];
 const history = [];
