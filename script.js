@@ -5,14 +5,14 @@ const downloadBtn = document.getElementById('downloadBtn');
 const clearBtn = document.getElementById('clearBtn');
 const undoBtn = document.getElementById('undoBtn');
 
+// randomizer buttons
+const rand3x3Btn = document.getElementById('rand3x3Btn');
+const randBannerBtn = document.getElementById('randBannerBtn');
+const randFullBtn = document.getElementById('randFullBtn');
+
 // 🔹 GRID SETTINGS
-// If you change grid size later (e.g. 8x8), update BOTH lines below:
-//
-// const gridSize = 8;
-// const cellPx = 40; // or keep cells same size and grow the grid in CSS
-//
-const gridSize = 8;  // was 4
-const cellPx = 80;   // keep 80 to keep same shape scale
+const gridSize = 8;   // 8x8 grid
+const cellPx = 80;    // 640px grid / 8 cells
 
 const cells = [];
 const history = [];
@@ -83,6 +83,44 @@ function restoreState(state) {
   });
 }
 
+// ---------- Helpers ----------
+function clearGridWithoutHistory() {
+  cells.forEach((cell) => {
+    const shape = cell.querySelector('.shape');
+    if (shape) shape.remove();
+    cell.dataset.clickCount = '0';
+  });
+}
+
+function pickBrandColor() {
+  // B60 : P15 : Y25
+  const r = Math.random();
+  if (r < 0.60) return '#6490E8';      // Blue
+  if (r < 0.75) return '#DCC6EA';      // Purple
+  return '#FDCF41';                    // Yellow
+}
+
+function randomRotation() {
+  const angles = [0, 90, 180, 270];
+  const idx = Math.floor(Math.random() * angles.length);
+  return angles[idx];
+}
+
+function createShapeInCell(cell, color, angle) {
+  let shape = cell.querySelector('.shape');
+  if (!shape) {
+    shape = document.createElement('div');
+    shape.classList.add('shape');
+    cell.appendChild(shape);
+  }
+  shape.style.backgroundColor = color;
+  shape.dataset.color = color;
+  shape.style.transform = `rotate(${angle}deg)`;
+
+  const clicks = ((angle / 90) % 4 + 4) % 4; // normalize 0–3
+  cell.dataset.clickCount = String(clicks);
+}
+
 // ---------- Cell click behaviour ----------
 function handleCellClick(cell) {
   // Save state before any modification
@@ -127,12 +165,7 @@ function handleCellClick(cell) {
 if (clearBtn) {
   clearBtn.addEventListener('click', () => {
     pushState();
-
-    cells.forEach((cell) => {
-      const shape = cell.querySelector('.shape');
-      if (shape) shape.remove();
-      cell.dataset.clickCount = '0';
-    });
+    clearGridWithoutHistory();
   });
 }
 
@@ -142,6 +175,80 @@ if (undoBtn) {
     const last = history.pop();
     if (!last) return;
     restoreState(last);
+  });
+}
+
+// ---------- Randomizers ----------
+
+// moderate density ~ 50%
+const FILL_PROB_MODERATE = 0.5;
+
+// 3x3 centered, using 3 colours
+if (rand3x3Btn) {
+  rand3x3Btn.addEventListener('click', () => {
+    pushState();
+    clearGridWithoutHistory(); // Override A: clear first
+
+    const areaSize = 3;
+    const startRow = Math.floor((gridSize - areaSize) / 2); // (8-3)/2 = 2
+    const startCol = Math.floor((gridSize - areaSize) / 2); // 2
+
+    for (let r = startRow; r < startRow + areaSize; r++) {
+      for (let c = startCol; c < startCol + areaSize; c++) {
+        if (Math.random() < FILL_PROB_MODERATE) {
+          const idx = r * gridSize + c;
+          const cell = cells[idx];
+          const color = pickBrandColor();
+          const angle = randomRotation();
+          createShapeInCell(cell, color, angle);
+        }
+      }
+    }
+  });
+}
+
+// 8x3 banner, centered vertically, full width
+if (randBannerBtn) {
+  randBannerBtn.addEventListener('click', () => {
+    pushState();
+    clearGridWithoutHistory(); // Override A: clear first
+
+    const areaHeight = 3;
+    const startRow = Math.floor((gridSize - areaHeight) / 2); // (8-3)/2 = 2
+    const startCol = 0;
+    const endCol = gridSize - 1;
+
+    for (let r = startRow; r < startRow + areaHeight; r++) {
+      for (let c = startCol; c <= endCol; c++) {
+        if (Math.random() < FILL_PROB_MODERATE) {
+          const idx = r * gridSize + c;
+          const cell = cells[idx];
+          const color = pickBrandColor();
+          const angle = randomRotation();
+          createShapeInCell(cell, color, angle);
+        }
+      }
+    }
+  });
+}
+
+// full 8x8 grid randomized
+if (randFullBtn) {
+  randFullBtn.addEventListener('click', () => {
+    pushState();
+    clearGridWithoutHistory(); // Override A: clear first
+
+    for (let r = 0; r < gridSize; r++) {
+      for (let c = 0; c < gridSize; c++) {
+        if (Math.random() < FILL_PROB_MODERATE) {
+          const idx = r * gridSize + c;
+          const cell = cells[idx];
+          const color = pickBrandColor();
+          const angle = randomRotation();
+          createShapeInCell(cell, color, angle);
+        }
+      }
+    }
   });
 }
 
