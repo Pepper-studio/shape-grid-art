@@ -74,35 +74,32 @@ h1 {
 }
 
 .grid {
-  width: 320px;
-  height: 320px;
+  width: 640px;
+  height: 640px;
   margin: 0 auto 16px auto;
   display: grid;
   grid-template-columns: repeat(8, 1fr);
-  gap: 0;              /* no space between cells */
-  padding: 0;          /* no padding */
+  gap: 0;
+  padding: 0;
   background: transparent;
-  position: relative;  /* <-- important for the overlay */
+  position: relative;
   border: 1px solid rgba(0, 0, 0, 0.15);
 }
 
-/* Overlay grid only for UI (not exported) */
 .grid::before {
   content: "";
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* doesn't block clicks */
   background-image:
-    linear-gradient(to right, rgba(0, 0, 0, 0.15) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(0, 0, 0, 0.15) 1px, transparent 1px);
-  background-size: calc(100% / 8) calc(100% / 8);
-  pointer-events: none;  /* don’t block clicks */
-  z-index: 0;            /* sit behind the cells/shapes */
-  opacity: 0.4;          /* adjust strength if needed */
-}
-
-/* Hide overlay when exporting PNG */
-.grid.exporting::before {
-  opacity: 0;
+    linear-gradient(rgba(0,0,0,0.2) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,0,0,0.2) 1px, transparent 1px);
+  background-size: calc(100% / 8) calc(100% / 8); /* match gridSize */
+  opacity: 0.25; /* lighter lines */
+  z-index: 0; /* above shapes */
 }
 
 .grid.exporting {
