@@ -94,7 +94,7 @@ h1 {
   background-image:
     linear-gradient(to right, rgba(0, 0, 0, 0.15) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(0, 0, 0, 0.15) 1px, transparent 1px);
-  background-size: calc(100% / 4) calc(100% / 4); /* 4x4 grid */
+  background-size: calc(100% / 8) calc(100% / 8);
   pointer-events: none;  /* don’t block clicks */
   z-index: 0;            /* sit behind the cells/shapes */
   opacity: 0.4;          /* adjust strength if needed */
