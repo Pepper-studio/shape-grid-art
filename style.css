@@ -55,12 +55,6 @@ h1 {
   align-items: center;
 }
 
-.override-group {
-  display: flex;
-  gap: 4px;
-  align-items: center;
-}
-
 .secondary-btn {
   padding: 10px 18px;
   border-radius: 999px;
@@ -80,33 +74,6 @@ h1 {
 
 .secondary-btn:active {
   transform: scale(0.97);
-}
-
-/* small square colour override buttons */
-.color-override {
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  border: 1px solid #d1d5db;
-  cursor: pointer;
-  padding: 0;
-  transition: transform 0.1s ease, border-color 0.15s ease;
-}
-
-/* specific colours */
-#allBlueBtn {
-  background: #6490E8;
-}
-#allPurpleBtn {
-  background: #DCC6EA;
-}
-#allYellowBtn {
-  background: #FDCF41;
-}
-
-.color-override:hover {
-  transform: scale(1.1);
-  border-color: #111827;
 }
 
 .grid {
@@ -136,10 +103,6 @@ h1 {
   background-size: calc(100% / 8) calc(100% / 8); /* 8x8 */
   opacity: 0.25;
   z-index: 0; /* behind shapes */
-}
-
-.grid.exporting {
-  border-color: transparent;
 }
 
 .cell {
