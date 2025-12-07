@@ -2,40 +2,43 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Shape Grid Art</title>
+  <title>Grid Shape Composer</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Shape Grid Art</h1>
-
+  <h1>Grid Composer</h1>
   <p class="instructions">
-    Pick a colour, then click on a cell to place a shape.<br />
-    Click the same cell to rotate it. After four clicks, it disappears.<br />
-    If you change colour and click a filled cell, it updates to the new colour.
+    Click to place shapes. Click again to rotate. Change colour to recolour. Or use randomizers below.
   </p>
 
   <div class="controls">
+    <!-- manual colour selection (for clicking cells) -->
     <button class="color-btn active" data-color="#6490E8">Blue</button>
     <button class="color-btn" data-color="#DCC6EA">Purple</button>
     <button class="color-btn" data-color="#FDCF41">Yellow</button>
-    <button id="allBlueBtn" class="color-override" style="background:#6490E8;"></button>
-    <button id="allPurpleBtn" class="color-override" style="background:#DCC6EA;"></button>
-    <button id="allYellowBtn" class="color-override" style="background:#FDCF41;"></button>
-
   </div>
 
-  <div class="grid" id="grid"></div>
+  <div class="actions">
+    <!-- randomizers -->
+    <button id="rand3x3Btn" class="secondary-btn">Random 3×3</button>
+    <button id="randBannerBtn" class="secondary-btn">Random 8×3</button>
+    <button id="randFullBtn" class="secondary-btn">Random 8×8</button>
 
-<div class="actions">
-  <button id="rand3x3Btn" class="secondary-btn">Random 3×3</button>
-  <button id="randBannerBtn" class="secondary-btn">Random 8×3</button>
-  <button id="randFullBtn" class="secondary-btn">Random 8×8</button>
-  <button id="undoBtn" class="secondary-btn">Undo</button>
-  <button id="clearBtn" class="secondary-btn">Clear grid</button>
-  <button id="downloadBtn" class="download-btn">Download SVG</button>
-</div>
+    <!-- global colour overrides -->
+    <div class="override-group">
+      <button id="allBlueBtn" class="color-override" title="All blue"></button>
+      <button id="allPurpleBtn" class="color-override" title="All purple"></button>
+      <button id="allYellowBtn" class="color-override" title="All yellow"></button>
+    </div>
 
-  <!-- html2canvas for PNG export -->
+    <!-- edit / utility -->
+    <button id="undoBtn" class="secondary-btn">Undo</button>
+    <button id="clearBtn" class="secondary-btn">Clear grid</button>
+    <button id="downloadBtn" class="download-btn">Download SVG</button>
+  </div>
+
+  <div id="grid" class="grid"></div>
+
   <script src="script.js"></script>
 </body>
 </html>
