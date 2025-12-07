@@ -51,7 +51,7 @@ function pushState() {
     };
   });
 
-  const clickCounts = cells.map((cell) => cell.dataset.clickCount || '0';
+  const clickCounts = cells.map((cell) => cell.dataset.clickCount || '0');
 
   history.push({ snapshot, clickCounts });
 
@@ -250,7 +250,7 @@ if (randFullBtn) {
       }
     }
   });
-});
+}
 
 // ---------- Download as tight-cropped SVG ----------
 downloadBtn.addEventListener('click', () => {
@@ -280,7 +280,7 @@ downloadBtn.addEventListener('click', () => {
     // Parse rotation angle from style.transform, e.g. "rotate(90deg)"
     let angle = 0;
     const transformVal = shapeEl.style.transform || '';
-    const match = transformVal.match(/rotate\(([-0-9.]+)deg\)/);
+    const match = transformVal.match(/rotate\\(([-0-9.]+)deg\\)/);
     if (match) {
       angle = parseFloat(match[1]) || 0;
     }
