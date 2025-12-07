@@ -22,7 +22,7 @@ h1 {
 }
 
 .controls {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
 }
 
 .color-btn {
@@ -47,9 +47,18 @@ h1 {
 
 .actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
   margin-top: 8px;
+  margin-bottom: 16px;
+  align-items: center;
+}
+
+.override-group {
+  display: flex;
+  gap: 4px;
+  align-items: center;
 }
 
 .secondary-btn {
@@ -73,6 +82,33 @@ h1 {
   transform: scale(0.97);
 }
 
+/* small square colour override buttons */
+.color-override {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid #d1d5db;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.1s ease, border-color 0.15s ease;
+}
+
+/* specific colours */
+#allBlueBtn {
+  background: #6490E8;
+}
+#allPurpleBtn {
+  background: #DCC6EA;
+}
+#allYellowBtn {
+  background: #FDCF41;
+}
+
+.color-override:hover {
+  transform: scale(1.1);
+  border-color: #111827;
+}
+
 .grid {
   width: 640px;
   height: 640px;
@@ -93,13 +129,13 @@ h1 {
   left: 0;
   width: 100%;
   height: 100%;
-  pointer-events: none; /* doesn't block clicks */
+  pointer-events: none;
   background-image:
     linear-gradient(rgba(0,0,0,0.2) 1px, transparent 1px),
     linear-gradient(90deg, rgba(0,0,0,0.2) 1px, transparent 1px);
-  background-size: calc(100% / 8) calc(100% / 8); /* match gridSize */
-  opacity: 0.25; /* lighter lines */
-  z-index: 0; /* above shapes */
+  background-size: calc(100% / 8) calc(100% / 8); /* 8x8 */
+  opacity: 0.25;
+  z-index: 0; /* behind shapes */
 }
 
 .grid.exporting {
@@ -111,29 +147,20 @@ h1 {
   width: 100%;
   height: 100%;
   background: transparent;
-  border: none; /* <-- no visible line */
+  border: none;
   cursor: pointer;
+  z-index: 1; /* above overlay */
 }
 
-/* Hide grid borders when exporting PNG */
-.grid.exporting .cell {
-  border-color: transparent;
-}
-
-/* Shape: square with only one rounded corner, rotated so the rounded tip is obvious */
+/* Shape: square with one rounded corner */
 .shape {
   position: absolute;
-  inset: 0;                 /* ⬅ fill the whole cell */
-  background-color: #ff4b4b;
-  border-radius: 50% 0 0 0; /* only one rounded corner */
+  inset: 0;
+  background-color: #6490E8; /* default, overridden by JS */
+  border-radius: 35% 0 0 0;  /* tweakable */
   transform-origin: 50% 50%;
   transform: rotate(0deg);
   transition: transform 0.18s ease;
-}
-
-.secondary-btn.active {
-  background: #e5e7eb;
-  border-color: #111827;
 }
 
 .download-btn {
@@ -154,18 +181,4 @@ h1 {
 
 .download-btn:active {
   transform: scale(0.97);
-}
-
-.color-override {
-  width: 28px;
-  height: 28px;
-  border-radius: 4px;
-  border: 1px solid #d1d5db;
-  cursor: pointer;
-  transition: transform 0.1s ease, border-color 0.15s ease;
-}
-
-.color-override:hover {
-  transform: scale(1.1);
-  border-color: #111827;
 }
