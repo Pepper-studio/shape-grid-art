@@ -282,7 +282,7 @@ if (randFullBtn) {
 
 // ---------- Download as tight-cropped SVG ----------
 downloadBtn.addEventListener('click', () => {
-  const { minRow, maxRow, minCol, maxCol } = findUsedBounds();
+  const { minRow, maxRow, maxCol, minCol } = findUsedBounds();
 
   // No shapes at all
   if (minRow === Infinity) {
