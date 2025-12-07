@@ -354,5 +354,20 @@ function findUsedBounds() {
     }
   });
 
+  function overrideAll(color) {
+  pushState();
+  cells.forEach(cell => {
+    const shape = cell.querySelector('.shape');
+    if (shape) {
+      shape.style.backgroundColor = color;
+      shape.dataset.color = color;
+    }
+  });
+}
+
+allBlueBtn.addEventListener('click', () => overrideAll('#6490E8'));
+allPurpleBtn.addEventListener('click', () => overrideAll('#DCC6EA'));
+allYellowBtn.addEventListener('click', () => overrideAll('#FDCF41'));
+
   return { minRow, maxRow, minCol, maxCol };
 }
