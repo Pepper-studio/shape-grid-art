@@ -1,334 +1,381 @@
-let currentColor = '#6490E8'; // default main color
+// -----------------------------
+// Shape Grid Art (V1)
+// 10x10 grid • 2 shapes • 2 colors
+// Click empty cell = place (and select)
+// Click filled cell = select
+// Edit via buttons: Rotate, Mirror ↔, Mirror ↕, Delete
+// Export: tight-cropped SVG
+// -----------------------------
 
-const grid = document.getElementById('grid');
-const downloadBtn = document.getElementById('downloadBtn');
-const clearBtn = document.getElementById('clearBtn');
-const undoBtn = document.getElementById('undoBtn');
+// ----- Config -----
+const GRID_SIZE = 10;           // 10x10
+const CELL_PX = 64;             // export sizing (independent from CSS)
+const ROUND_RATIO = 0.4;        // 40% rounded corner based on cell size
 
-// randomizer buttons
-const rand3x3Btn = document.getElementById('rand3x3Btn');
-const randBannerBtn = document.getElementById('randBannerBtn');
-const randFullBtn = document.getElementById('randFullBtn');
+const COLORS = {
+  blue: "#6396fc",
+  yellow: "#ffdd35",
+};
 
-// 🔹 GRID SETTINGS
-const gridSize = 8;   // 8x8 grid
-const cellPx = 80;    // 640px grid / 8 cells
+// ----- DOM -----
+const grid = document.getElementById("grid");
+const statusText = document.getElementById("statusText");
+
+// Shape buttons
+const shapeSquareBtn = document.getElementById("shapeSquareBtn");
+const shapeRoundedBtn = document.getElementById("shapeRoundedBtn");
+
+// Color buttons
+const colorBlueBtn = document.getElementById("colorBlueBtn");
+const colorYellowBtn = document.getElementById("colorYellowBtn");
+
+// Edit buttons (disabled until selection)
+const rotateBtn = document.getElementById("rotateBtn");
+const mirrorXBtn = document.getElementById("mirrorXBtn");
+const mirrorYBtn = document.getElementById("mirrorYBtn");
+const deleteBtn = document.getElementById("deleteBtn");
+
+// Utility
+const undoBtn = document.getElementById("undoBtn");
+const clearBtn = document.getElementById("clearBtn");
+const downloadBtn = document.getElementById("downloadBtn");
+
+// ----- State -----
+let currentColor = COLORS.blue;
+let currentShapeType = "square"; // "square" | "rounded"
+let selectedCell = null;         // HTMLElement | null
 
 const cells = [];
-const history = [];
+const history = [];              // snapshots for undo (max 100)
 
-// ---------- Build grid ----------
-for (let i = 0; i < gridSize * gridSize; i++) {
-  const cell = document.createElement('div');
-  cell.classList.add('cell');
-  cell.dataset.clickCount = '0';
-  cell.dataset.row = Math.floor(i / gridSize);
-  cell.dataset.col = i % gridSize;
-  cell.addEventListener('click', () => handleCellClick(cell));
+// Each cell can have data or be empty:
+// { shapeType, color, rotation, mirrorX, mirrorY }
+function readCellData(cell) {
+  const shape = cell.querySelector(".shape");
+  if (!shape) return null;
+
+  return {
+    shapeType: shape.dataset.shapeType || "square",
+    color: shape.dataset.color || COLORS.blue,
+    rotation: parseInt(shape.dataset.rotation || "0", 10) || 0,
+    mirrorX: shape.dataset.mirrorX === "true",
+    mirrorY: shape.dataset.mirrorY === "true",
+  };
+}
+
+function writeCellData(cell, data) {
+  // Clear
+  if (!data) {
+    const existing = cell.querySelector(".shape");
+    if (existing) existing.remove();
+    return;
+  }
+
+  let shape = cell.querySelector(".shape");
+  if (!shape) {
+    shape = document.createElement("div");
+    shape.classList.add("shape");
+    cell.appendChild(shape);
+  }
+
+  shape.dataset.shapeType = data.shapeType;
+  shape.dataset.color = data.color;
+  shape.dataset.rotation = String(data.rotation);
+  shape.dataset.mirrorX = String(!!data.mirrorX);
+  shape.dataset.mirrorY = String(!!data.mirrorY);
+
+  // Visuals
+  shape.style.backgroundColor = data.color;
+
+  // Base shape geometry:
+  // - square: no rounding
+  // - rounded: top-right corner rounded at 40%
+  if (data.shapeType === "rounded") {
+    const r = `${ROUND_RATIO * 100}%`;
+    shape.style.borderRadius = `0 ${r} 0 0`; // top-right only
+  } else {
+    shape.style.borderRadius = "0";
+  }
+
+  // Transform (keep consistent across app + export logic)
+  // We apply rotate + mirror about the center
+  const sx = data.mirrorX ? -1 : 1;
+  const sy = data.mirrorY ? -1 : 1;
+  shape.style.transform = `rotate(${data.rotation}deg) scaleX(${sx}) scaleY(${sy})`;
+}
+
+function pushState() {
+  const snapshot = cells.map((cell) => readCellData(cell));
+  history.push(snapshot);
+  if (history.length > 100) history.shift();
+}
+
+function restoreState(snapshot) {
+  cells.forEach((cell, i) => {
+    writeCellData(cell, snapshot[i]);
+  });
+  clearSelection();
+  updateStatus();
+}
+
+// ----- UI helpers -----
+function setActiveButton(groupButtons, activeBtn) {
+  groupButtons.forEach((b) => b.classList.remove("active"));
+  activeBtn.classList.add("active");
+}
+
+function setEditEnabled(enabled) {
+  rotateBtn.disabled = !enabled;
+  mirrorXBtn.disabled = !enabled;
+  mirrorYBtn.disabled = !enabled;
+  deleteBtn.disabled = !enabled;
+}
+
+function clearSelection() {
+  if (selectedCell) selectedCell.classList.remove("selected");
+  selectedCell = null;
+  setEditEnabled(false);
+}
+
+function selectCell(cell) {
+  if (selectedCell === cell) return;
+  clearSelection();
+  selectedCell = cell;
+  selectedCell.classList.add("selected");
+  setEditEnabled(true);
+  updateStatus();
+}
+
+function updateStatus() {
+  if (!statusText) return;
+
+  if (!selectedCell) {
+    statusText.textContent = "No selection.";
+    return;
+  }
+
+  const data = readCellData(selectedCell);
+  const row = selectedCell.dataset.row;
+  const col = selectedCell.dataset.col;
+
+  if (!data) {
+    statusText.textContent = `Selected cell (${parseInt(row, 10) + 1}, ${parseInt(col, 10) + 1}) is empty.`;
+    return;
+  }
+
+  const shapeLabel = data.shapeType === "rounded" ? "Rounded corner" : "Square";
+  const mx = data.mirrorX ? "on" : "off";
+  const my = data.mirrorY ? "on" : "off";
+
+  statusText.textContent =
+    `Selected: ${shapeLabel} • rotation ${data.rotation}° • mirror ↔ ${mx} • mirror ↕ ${my}`;
+}
+
+// ----- Build grid (10x10) -----
+for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+  const cell = document.createElement("div");
+  cell.classList.add("cell");
+  cell.dataset.row = String(Math.floor(i / GRID_SIZE));
+  cell.dataset.col = String(i % GRID_SIZE);
+
+  cell.addEventListener("click", () => handleCellClick(cell));
+
   grid.appendChild(cell);
   cells.push(cell);
 }
 
-// ---------- Colour selection ----------
-document.querySelectorAll('.color-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.color-btn').forEach((b) =>
-      b.classList.remove('active')
-    );
-    btn.classList.add('active');
-    currentColor = btn.getAttribute('data-color');
-  });
+// ----- Click behavior (Option A) -----
+function handleCellClick(cell) {
+  const existing = readCellData(cell);
+
+  // Empty cell: place new shape, then select it
+  if (!existing) {
+    pushState();
+
+    const data = {
+      shapeType: currentShapeType,
+      color: currentColor,
+      rotation: 0,
+      mirrorX: false,
+      mirrorY: false,
+    };
+
+    writeCellData(cell, data);
+    selectCell(cell);
+    return;
+  }
+
+  // Filled cell: select only
+  selectCell(cell);
+}
+
+// ----- Shape selection -----
+shapeSquareBtn.addEventListener("click", () => {
+  currentShapeType = "square";
+  setActiveButton([shapeSquareBtn, shapeRoundedBtn], shapeSquareBtn);
 });
 
-// ---------- History helpers ----------
-function pushState() {
-  const snapshot = cells.map((cell) => {
-    const shape = cell.querySelector('.shape');
-    if (!shape) return null;
-    return {
-      color: shape.dataset.color,
-      rotation: shape.style.transform || 'rotate(0deg)',
-    };
-  });
+shapeRoundedBtn.addEventListener("click", () => {
+  currentShapeType = "rounded";
+  setActiveButton([shapeSquareBtn, shapeRoundedBtn], shapeRoundedBtn);
+});
 
-  const clickCounts = cells.map((cell) => cell.dataset.clickCount || '0');
+// ----- Color selection -----
+colorBlueBtn.addEventListener("click", () => {
+  currentColor = COLORS.blue;
+  setActiveButton([colorBlueBtn, colorYellowBtn], colorBlueBtn);
+});
 
-  history.push({ snapshot, clickCounts });
+colorYellowBtn.addEventListener("click", () => {
+  currentColor = COLORS.yellow;
+  setActiveButton([colorBlueBtn, colorYellowBtn], colorYellowBtn);
+});
 
-  if (history.length > 100) {
-    history.shift();
-  }
-}
+// ----- Edit actions -----
+rotateBtn.addEventListener("click", () => {
+  if (!selectedCell) return;
+  const data = readCellData(selectedCell);
+  if (!data) return;
 
-function restoreState(state) {
-  cells.forEach((cell, index) => {
-    const info = state.snapshot[index];
-    const clickCount = state.clickCounts[index] || '0';
-    cell.dataset.clickCount = clickCount;
-
-    const existing = cell.querySelector('.shape');
-    if (info === null) {
-      if (existing) existing.remove();
-    } else {
-      let shape = existing;
-      if (!shape) {
-        shape = document.createElement('div');
-        shape.classList.add('shape');
-        cell.appendChild(shape);
-      }
-      shape.style.backgroundColor = info.color;
-      shape.dataset.color = info.color;
-      shape.style.transform = info.rotation;
-    }
-  });
-}
-
-// ---------- Helpers ----------
-function clearGridWithoutHistory() {
-  cells.forEach((cell) => {
-    const shape = cell.querySelector('.shape');
-    if (shape) shape.remove();
-    cell.dataset.clickCount = '0';
-  });
-}
-
-function pickBrandColor() {
-  // B60 : P15 : Y25
-  const r = Math.random();
-  if (r < 0.60) return '#6490E8';      // Blue
-  if (r < 0.75) return '#DCC6EA';      // Purple
-  return '#FDCF41';                    // Yellow
-}
-
-function randomRotation() {
-  const angles = [0, 90, 180, 270];
-  const idx = Math.floor(Math.random() * angles.length);
-  return angles[idx];
-}
-
-function createShapeInCell(cell, color, angle) {
-  let shape = cell.querySelector('.shape');
-  if (!shape) {
-    shape = document.createElement('div');
-    shape.classList.add('shape');
-    cell.appendChild(shape);
-  }
-  shape.style.backgroundColor = color;
-  shape.dataset.color = color;
-  shape.style.transform = `rotate(${angle}deg)`;
-
-  const clicks = ((angle / 90) % 4 + 4) % 4; // normalize 0–3
-  cell.dataset.clickCount = String(clicks);
-}
-
-// ---------- Cell click behaviour ----------
-function handleCellClick(cell) {
-  // Save state before any modification
   pushState();
+  data.rotation = (data.rotation + 90) % 360;
+  writeCellData(selectedCell, data);
+  updateStatus();
+});
 
-  const existingShape = cell.querySelector('.shape');
-  let clickCount = parseInt(cell.dataset.clickCount || '0', 10);
+mirrorXBtn.addEventListener("click", () => {
+  if (!selectedCell) return;
+  const data = readCellData(selectedCell);
+  if (!data) return;
 
-  // If cell empty → create shape
-  if (!existingShape) {
-    const shape = document.createElement('div');
-    shape.classList.add('shape');
-    shape.style.backgroundColor = currentColor;
-    shape.dataset.color = currentColor;
-    shape.style.transform = 'rotate(0deg)';
-    cell.appendChild(shape);
-    return;
-  }
+  pushState();
+  data.mirrorX = !data.mirrorX;
+  writeCellData(selectedCell, data);
+  updateStatus();
+});
 
-  // If colour changed → override colour only, keep rotation + clickCount
-  const shapeColor = existingShape.dataset.color;
-  if (shapeColor !== currentColor) {
-    existingShape.style.backgroundColor = currentColor;
-    existingShape.dataset.color = currentColor;
-    return;
-  }
+mirrorYBtn.addEventListener("click", () => {
+  if (!selectedCell) return;
+  const data = readCellData(selectedCell);
+  if (!data) return;
 
-  // Same colour → rotate, then remove after 4th click
-  clickCount += 1;
+  pushState();
+  data.mirrorY = !data.mirrorY;
+  writeCellData(selectedCell, data);
+  updateStatus();
+});
 
-  if (clickCount >= 4) {
-    existingShape.remove();
-    cell.dataset.clickCount = '0';
-  } else {
-    const angle = clickCount * 90;
-    existingShape.style.transform = `rotate(${angle}deg)`;
-    cell.dataset.clickCount = String(clickCount);
-  }
-}
+deleteBtn.addEventListener("click", () => {
+  if (!selectedCell) return;
+  const data = readCellData(selectedCell);
+  if (!data) return;
 
-// ---------- Clear grid ----------
-if (clearBtn) {
-  clearBtn.addEventListener('click', () => {
-    pushState();
-    clearGridWithoutHistory();
-  });
-}
+  pushState();
+  writeCellData(selectedCell, null);
+  clearSelection();
+  updateStatus();
+});
 
-// ---------- Undo ----------
-if (undoBtn) {
-  undoBtn.addEventListener('click', () => {
-    const last = history.pop();
-    if (!last) return;
-    restoreState(last);
-  });
-}
+// ----- Utility actions -----
+clearBtn.addEventListener("click", () => {
+  pushState();
+  cells.forEach((cell) => writeCellData(cell, null));
+  clearSelection();
+  updateStatus();
+});
 
-// ---------- Randomizers ----------
+undoBtn.addEventListener("click", () => {
+  const last = history.pop();
+  if (!last) return;
+  restoreState(last);
+});
 
-// moderate density ~ 50%
-const FILL_PROB_MODERATE = 0.5;
-
-// 3x3 centered, using 3 colours
-if (rand3x3Btn) {
-  rand3x3Btn.addEventListener('click', () => {
-    pushState();
-    clearGridWithoutHistory(); // Override A: clear first
-
-    const areaSize = 3;
-    const startRow = Math.floor((gridSize - areaSize) / 2); // (8-3)/2 = 2
-    const startCol = Math.floor((gridSize - areaSize) / 2); // 2
-
-    for (let r = startRow; r < startRow + areaSize; r++) {
-      for (let c = startCol; c < startCol + areaSize; c++) {
-        if (Math.random() < FILL_PROB_MODERATE) {
-          const idx = r * gridSize + c;
-          const cell = cells[idx];
-          const color = pickBrandColor();
-          const angle = randomRotation();
-          createShapeInCell(cell, color, angle);
-        }
-      }
-    }
-  });
-}
-
-// 8x3 banner, centered vertically, full width
-if (randBannerBtn) {
-  randBannerBtn.addEventListener('click', () => {
-    pushState();
-    clearGridWithoutHistory(); // Override A: clear first
-
-    const areaHeight = 3;
-    const startRow = Math.floor((gridSize - areaHeight) / 2); // (8-3)/2 = 2
-    const startCol = 0;
-    const endCol = gridSize - 1;
-
-    for (let r = startRow; r < startRow + areaHeight; r++) {
-      for (let c = startCol; c <= endCol; c++) {
-        if (Math.random() < FILL_PROB_MODERATE) {
-          const idx = r * gridSize + c;
-          const cell = cells[idx];
-          const color = pickBrandColor();
-          const angle = randomRotation();
-          createShapeInCell(cell, color, angle);
-        }
-      }
-    }
-  });
-}
-
-// full 8x8 grid randomized
-if (randFullBtn) {
-  randFullBtn.addEventListener('click', () => {
-    pushState();
-    clearGridWithoutHistory(); // Override A: clear first
-
-    for (let r = 0; r < gridSize; r++) {
-      for (let c = 0; c < gridSize; c++) {
-        if (Math.random() < FILL_PROB_MODERATE) {
-          const idx = r * gridSize + c;
-          const cell = cells[idx];
-          const color = pickBrandColor();
-          const angle = randomRotation();
-          createShapeInCell(cell, color, angle);
-        }
-      }
-    }
-  });
-}
-
-// ---------- Download as tight-cropped SVG ----------
-downloadBtn.addEventListener('click', () => {
+// ----- Export (tight-cropped SVG) -----
+downloadBtn.addEventListener("click", () => {
   const { minRow, maxRow, minCol, maxCol } = findUsedBounds();
 
-  // No shapes at all
   if (minRow === Infinity) {
-    alert('No artwork found! Place shapes before exporting.');
+    alert("No artwork found! Place shapes before exporting.");
     return;
   }
 
   const cols = maxCol - minCol + 1;
   const rows = maxRow - minRow + 1;
-  const svgWidth = cols * cellPx;
-  const svgHeight = rows * cellPx;
+  const svgWidth = cols * CELL_PX;
+  const svgHeight = rows * CELL_PX;
 
   const shapesSvg = [];
 
   cells.forEach((cell) => {
-    const shapeEl = cell.querySelector('.shape');
-    if (!shapeEl) return;
+    const data = readCellData(cell);
+    if (!data) return;
 
     const row = parseInt(cell.dataset.row, 10);
     const col = parseInt(cell.dataset.col, 10);
-    const color = shapeEl.dataset.color || currentColor;
 
-    // Parse rotation angle from style.transform, e.g. "rotate(90deg)"
-    let angle = 0;
-    const transformVal = shapeEl.style.transform || '';
-    const match = transformVal.match(/rotate\\(([-0-9.]+)deg\\)/);
-    if (match) {
-      angle = parseFloat(match[1]) || 0;
+    const x = (col - minCol) * CELL_PX;
+    const y = (row - minRow) * CELL_PX;
+
+    const w = CELL_PX;
+    const h = CELL_PX;
+
+    // Paths
+    let shapeMarkup = "";
+    if (data.shapeType === "square") {
+      shapeMarkup = `<rect x="0" y="0" width="${w}" height="${h}" fill="${data.color}" />`;
+    } else {
+      // Rounded top-right corner (40% of cell size)
+      const r = CELL_PX * ROUND_RATIO;
+      const d = [
+        `M 0 0`,
+        `H ${w - r}`,
+        `Q ${w} 0 ${w} ${r}`,
+        `V ${h}`,
+        `H 0`,
+        `Z`,
+      ].join(" ");
+      shapeMarkup = `<path d="${d}" fill="${data.color}" />`;
     }
 
-    // Position of this cell inside the cropped area
-    const x = (col - minCol) * cellPx;
-    const y = (row - minRow) * cellPx;
+    // Apply rotate + mirror around center
+    const cx = w / 2;
+    const cy = h / 2;
+    const sx = data.mirrorX ? -1 : 1;
+    const sy = data.mirrorY ? -1 : 1;
+    const a = data.rotation;
 
-    // Shape path: rectangle with one rounded corner (top-left in local coords)
-    const r = cellPx / 2;
-    const w = cellPx;
-    const h = cellPx;
-
-    const d = [
-      `M 0 ${r}`,
-      `A ${r} ${r} 0 0 1 ${r} 0`,
-      `L ${w} 0`,
-      `L ${w} ${h}`,
-      `L 0 ${h}`,
-      'Z',
-    ].join(' ');
-
-    // Center of the cell for rotation
-    const cx = cellPx / 2;
-    const cy = cellPx / 2;
-
-    const pathSvg = `
-      <g transform="translate(${x} ${y}) rotate(${angle} ${cx} ${cy})">
-        <path d="${d}" fill="${color}" />
+    // Use nested transforms for reliability
+    const group = `
+      <g transform="translate(${x} ${y})">
+        <g transform="translate(${cx} ${cy})">
+          <g transform="rotate(${a})">
+            <g transform="scale(${sx} ${sy})">
+              <g transform="translate(${-cx} ${-cy})">
+                ${shapeMarkup}
+              </g>
+            </g>
+          </g>
+        </g>
       </g>
-    `;
-    shapesSvg.push(pathSvg);
+    `.trim();
+
+    shapesSvg.push(group);
   });
 
   const svgContent = `
-    <svg xmlns="http://www.w3.org/2000/svg"
-         width="${svgWidth}" height="${svgHeight}"
-         viewBox="0 0 ${svgWidth} ${svgHeight}">
-      ${shapesSvg.join('\n')}
-    </svg>
+<svg xmlns="http://www.w3.org/2000/svg"
+     width="${svgWidth}" height="${svgHeight}"
+     viewBox="0 0 ${svgWidth} ${svgHeight}">
+${shapesSvg.join("\n")}
+</svg>
   `.trim();
 
-  const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+  const blob = new Blob([svgContent], { type: "image/svg+xml" });
   const url = URL.createObjectURL(blob);
 
-  const link = document.createElement('a');
+  const link = document.createElement("a");
   link.href = url;
-  link.download = 'grid-art.svg';
+  link.download = "grid-art.svg";
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -336,7 +383,6 @@ downloadBtn.addEventListener('click', () => {
   URL.revokeObjectURL(url);
 });
 
-// ---------- Find tight bounds ----------
 function findUsedBounds() {
   let minRow = Infinity;
   let maxRow = -Infinity;
@@ -344,7 +390,7 @@ function findUsedBounds() {
   let maxCol = -Infinity;
 
   cells.forEach((cell) => {
-    if (cell.querySelector('.shape')) {
+    if (cell.querySelector(".shape")) {
       const row = parseInt(cell.dataset.row, 10);
       const col = parseInt(cell.dataset.col, 10);
       minRow = Math.min(minRow, row);
@@ -356,3 +402,7 @@ function findUsedBounds() {
 
   return { minRow, maxRow, minCol, maxCol };
 }
+
+// Initial UI state
+setEditEnabled(false);
+updateStatus();
