@@ -2,33 +2,60 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Grid Shape Composer</title>
+  <title>Shape Grid Art</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <h1>Grid Composer</h1>
+  <h1>Shape Grid Art</h1>
   <p class="instructions">
-    Click to place shapes. Click again to rotate. Change colour to recolour. Or use the random buttons below.
+    Click an empty cell to place a shape. Click a filled cell to select it. Use the controls to rotate, mirror, or delete.
   </p>
 
-  <div class="controls">
-    <button class="color-btn active" data-color="#6490E8">Blue</button>
-    <button class="color-btn" data-color="#DCC6EA">Purple</button>
-    <button class="color-btn" data-color="#FDCF41">Yellow</button>
+  <div class="panel" role="group" aria-label="Controls">
+    <!-- Shape -->
+    <div class="group">
+      <div class="group-title">Shape</div>
+      <div class="btn-row">
+        <button id="shapeSquareBtn" class="pill-btn active" type="button">Square</button>
+        <button id="shapeRoundedBtn" class="pill-btn" type="button">Rounded corner</button>
+      </div>
+    </div>
+
+    <!-- Color -->
+    <div class="group">
+      <div class="group-title">Colour</div>
+      <div class="btn-row">
+        <button id="colorBlueBtn" class="pill-btn active" type="button" data-color="#6396fc">Blue</button>
+        <button id="colorYellowBtn" class="pill-btn" type="button" data-color="#ffdd35">Yellow</button>
+      </div>
+    </div>
+
+    <!-- Edit (disabled until selection) -->
+    <div class="group">
+      <div class="group-title">Edit</div>
+      <div class="btn-row">
+        <button id="rotateBtn" class="pill-btn" type="button" disabled>Rotate 90°</button>
+        <button id="mirrorXBtn" class="pill-btn" type="button" disabled>Mirror ↔</button>
+        <button id="mirrorYBtn" class="pill-btn" type="button" disabled>Mirror ↕</button>
+        <button id="deleteBtn" class="pill-btn danger" type="button" disabled>Delete</button>
+      </div>
+    </div>
+
+    <!-- Utility -->
+    <div class="group">
+      <div class="group-title">Utility</div>
+      <div class="btn-row">
+        <button id="undoBtn" class="pill-btn" type="button">Undo</button>
+        <button id="clearBtn" class="pill-btn" type="button">Clear grid</button>
+        <button id="downloadBtn" class="download-btn" type="button">Download SVG</button>
+      </div>
+    </div>
   </div>
 
-  <div id="grid" class="grid"></div>
+  <div id="grid" class="grid" aria-label="10 by 10 grid"></div>
 
-    <div class="actions">
-    <button id="rand3x3Btn" class="secondary-btn">Random 3×3</button>
-    <button id="randBannerBtn" class="secondary-btn">Random 8×3</button>
-    <button id="randFullBtn" class="secondary-btn">Random 8×8</button>
+  <p id="statusText" class="status" aria-live="polite"></p>
 
-    <button id="undoBtn" class="secondary-btn">Undo</button>
-    <button id="clearBtn" class="secondary-btn">Clear grid</button>
-    <button id="downloadBtn" class="download-btn">Download SVG</button>
-  </div>
-  
   <script src="script.js"></script>
 </body>
 </html>
