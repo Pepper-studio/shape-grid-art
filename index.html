@@ -2,34 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Shape Grid Art</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
   <div class="app">
-    <header class="header">
-      <h1>Shape Grid Art</h1>
-      <p class="instructions">
-        Stamp mode: click any cell to place (or replace). Select mode: select a shape to rotate, mirror, delete, or drag.
-      </p>
-    </header>
 
-    <!-- MODE (top of grid, centered, horizontal) -->
+    <!-- Top: Mode -->
     <div class="mode-bar" role="group" aria-label="Mode">
       <button id="modeStampBtn" class="pill-btn active" type="button">Stamp</button>
       <button id="modeSelectBtn" class="pill-btn" type="button">Select</button>
     </div>
 
-    <!-- MAIN LAYOUT: left tools • grid • right edit -->
-    <main class="workspace">
-      <!-- LEFT: Shape + Colour (vertical, left aligned) -->
-      <aside class="side-panel left" aria-label="Shape and Colour">
+    <!-- Main layout: left / grid / right -->
+    <div class="layout">
+      <!-- Left column: Shape + Colour -->
+      <aside class="panel left" aria-label="Shape and Colour">
         <div class="panel-block">
           <div class="panel-title">Shape</div>
           <div class="stack">
             <button id="shapeSquareBtn" class="pill-btn active" type="button">Square</button>
-            <button id="shapeRoundedBtn" class="pill-btn" type="button">Rounded corner</button>
+            <button id="shapeRoundedBtn" class="pill-btn" type="button">Rounded</button>
           </div>
         </div>
 
@@ -42,22 +37,13 @@
         </div>
       </aside>
 
-      <!-- CENTER: Grid -->
-      <section class="center" aria-label="Grid area">
+      <!-- Center: Grid -->
+      <main class="center" aria-label="Grid area">
         <div id="grid" class="grid" aria-label="5 by 5 grid"></div>
+      </main>
 
-        <!-- Bottom controls (centered, horizontal) -->
-        <div class="bottom-bar" role="group" aria-label="Actions">
-          <button id="undoBtn" class="pill-btn" type="button">Undo</button>
-          <button id="clearBtn" class="pill-btn" type="button">Clear</button>
-          <button id="downloadBtn" class="download-btn" type="button">Download SVG</button>
-        </div>
-
-        <p id="statusText" class="status" aria-live="polite"></p>
-      </section>
-
-      <!-- RIGHT: Edit (vertical, left aligned) -->
-      <aside class="side-panel right" aria-label="Edit tools">
+      <!-- Right column: Edit -->
+      <aside class="panel right" aria-label="Edit tools">
         <div class="panel-block">
           <div class="panel-title">Edit</div>
           <div class="stack">
@@ -73,7 +59,16 @@
           </div>
         </div>
       </aside>
-    </main>
+    </div>
+
+    <!-- Bottom: Actions -->
+    <div class="bottom-bar" role="group" aria-label="Actions">
+      <button id="undoBtn" class="pill-btn" type="button">Undo</button>
+      <button id="clearBtn" class="pill-btn" type="button">Clear</button>
+      <button id="downloadBtn" class="download-btn" type="button">Download</button>
+    </div>
+
+    <p id="statusText" class="status" aria-live="polite"></p>
   </div>
 
   <script src="script.js"></script>
