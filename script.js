@@ -115,17 +115,36 @@ function setMode(mode) {
 
   if (mode === "stamp") {
     setActiveButton([modeStampBtn, modeSelectBtn], modeStampBtn);
-    setEditEnabled(false);
+
+    // Disable edit tools + select all
+    rotateBtn.disabled = true;
+    mirrorXBtn.disabled = true;
+    mirrorYBtn.disabled = true;
+    deleteBtn.disabled = true;
+    if (selectAllBtn) selectAllBtn.disabled = true;
+
     updateDraggableCursors();
     updateStatus();
-  } else {
-    setActiveButton([modeStampBtn, modeSelectBtn], modeSelectBtn);
-    const hasSelection = !!selectedCell && !!readCellData(selectedCell);
-    setEditEnabled(hasSelection);
-    updateDraggableCursors();
-    updateStatus();
+    return;
   }
+
+  // Select mode
+  setActiveButton([modeStampBtn, modeSelectBtn], modeSelectBtn);
+
+  // Enable Select All if there is at least one shape (no selection required)
+  if (selectAllBtn) selectAllBtn.disabled = !(countFilledCells() > 0);
+
+  // Edit tools only enabled when something is selected
+  const hasSelection = !!selectedCell && !!readCellData(selectedCell);
+  rotateBtn.disabled = !hasSelection;
+  mirrorXBtn.disabled = !hasSelection;
+  mirrorYBtn.disabled = !hasSelection;
+  deleteBtn.disabled = !hasSelection;
+
+  updateDraggableCursors();
+  updateStatus();
 }
+
 
 function updateStatus() {
   if (!statusText) return;
