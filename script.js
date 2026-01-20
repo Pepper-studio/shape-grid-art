@@ -1,5 +1,5 @@
 // -----------------------------
-// Shape Grid Art (V6 - cleaned)
+// Shape Builder (V7)
 // 5x5 grid • 100x100 cells
 // Modes:
 //  - Stamp: click any cell to place/replace
@@ -16,6 +16,9 @@
 
 const GRID_SIZE = 5;
 const CELL_PX = 100;
+
+// Controls rounding for the rounded shape.
+// 0.40 = 40% of cell, 0.55 = 55% of cell, etc.
 const ROUND_RATIO = 0.55;
 
 const COLORS = { blue: "#6396fc", yellow: "#ffdd35" };
@@ -175,8 +178,7 @@ function setMode(mode) {
 
   if (mode === "stamp") {
     setActiveButton([modeStampBtn, modeSelectBtn], modeStampBtn);
-    // keep selection cleared in stamp mode (simpler mental model)
-    clearSelection();
+    clearSelection(); // keep stamp mode simple
     setEditEnabled();
     updateDraggableCursors();
     updateStatus();
@@ -348,8 +350,6 @@ function handleCellClick(cell) {
       mirrorX: false,
       mirrorY: false,
     });
-
-    // keep UX simple: stamping clears selection
     clearSelection();
     return;
   }
@@ -483,7 +483,7 @@ undoBtn.addEventListener("click", () => {
   const last = history.pop();
   if (!last) return;
   restoreState(last);
-  setMode(currentMode); // refresh enable/disable states
+  setMode(currentMode);
 });
 
 // ---------- Drag & snap (single + group) ----------
@@ -586,43 +586,44 @@ grid.addEventListener("pointerup", (e) => {
       return;
     }
 
-    const dest = cells[r * GRID_SIZE + c];
     plan.push({
-      src: cell,
-      dest,
+      srcRow,
+      srcCol,
+      destRow: r,
+      destCol: c,
       data,
-      srcKey: `${srcRow},${srcCol}`,
-      destKey: `${r},${c}`,
     });
   }
 
-  // If nothing to move
   if (plan.length === 0) {
     dragFromCell = null;
     return;
   }
 
-  // Execute atomically with a buffer to avoid "self-overlap" loss
+  // Execute atomically with a buffer
   pushState();
 
-  // Buffer destination writes (destKey -> data)
   const destMap = new Map();
-  for (const p of plan) destMap.set(p.destKey, p.data);
+  const srcSet = new Set();
 
-  // Clear all source cells (unique)
-  const srcKeys = new Set(plan.map((p) => p.srcKey));
-  for (const key of srcKeys) {
-    const [r, c] = key.split(",").map(Number);
-    writeCellData(cells[r * GRID_SIZE + c], null);
+  for (const p of plan) {
+    srcSet.add(`${p.srcRow},${p.srcCol}`);
+    destMap.set(`${p.destRow},${p.destCol}`, p.data);
   }
 
-  // Write all destinations
+  // Clear sources
+  srcSet.forEach((key) => {
+    const [r, c] = key.split(",").map(Number);
+    writeCellData(cells[r * GRID_SIZE + c], null);
+  });
+
+  // Write destinations (replacement behavior)
   destMap.forEach((data, key) => {
     const [r, c] = key.split(",").map(Number);
     writeCellData(cells[r * GRID_SIZE + c], data);
   });
 
-  // Rebuild selection on new locations
+  // Rebuild selection
   const movedCells = [];
   destMap.forEach((_data, key) => {
     const [r, c] = key.split(",").map(Number);
@@ -738,7 +739,7 @@ ${shapesSvg.join("\n")}
 
   const link = document.createElement("a");
   link.href = url;
-  link.download = "grid-art.svg";
+  link.download = "shape-builder.svg";
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
