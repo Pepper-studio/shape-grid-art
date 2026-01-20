@@ -1,18 +1,18 @@
 // -----------------------------
-// Shape Grid Art (V2 - simplified for clients)
-// 10x10 grid • 2 shapes • 2 colors
+// Shape Grid Art (V3)
+// 5x5 grid • 100x100 cells
 // Modes:
-//  - Stamp (default): click any cell to place/REPLACE
+//  - Stamp (default): click any cell to place/replace
 //  - Select: click filled cell to select, then Rotate/Mirror/Delete
-// Selection highlight is handled by CSS ::after overlay (always on top)
+// Drag & snap (Select mode): drag selected shape to another cell
 // Rounded corner: 40% of cell size
-// Export: tight-cropped SVG
+// Export: tight-cropped SVG (CELL_PX = 100)
 // -----------------------------
 
 // ----- Config -----
-const GRID_SIZE = 10;
-const CELL_PX = 64;        // export sizing (independent from CSS)
-const ROUND_RATIO = 0.4;   // 40% rounded corner based on cell size
+const GRID_SIZE = 5;
+const CELL_PX = 100;       // export sizing; also matches visual cell size
+const ROUND_RATIO = 0.4;
 
 const COLORS = {
   blue: "#6396fc",
@@ -50,10 +50,15 @@ const downloadBtn = document.getElementById("downloadBtn");
 let currentMode = "stamp";          // "stamp" | "select"
 let currentColor = COLORS.blue;
 let currentShapeType = "square";    // "square" | "rounded"
-let selectedCell = null;            // HTMLElement | null
+let selectedCell = null;
 
 const cells = [];
-const history = [];                 // undo snapshots (max 100)
+const history = [];
+
+// Drag state
+let isDragging = false;
+let dragFromCell = null;
+let currentDropCell = null;
 
 // ----- Helpers (UI) -----
 function setActiveButton(groupButtons, activeBtn) {
@@ -68,21 +73,28 @@ function setEditEnabled(enabled) {
   deleteBtn.disabled = !enabled;
 }
 
+function clearDropTarget() {
+  if (currentDropCell) currentDropCell.classList.remove("drop-target");
+  currentDropCell = null;
+}
+
 function clearSelection() {
   if (selectedCell) selectedCell.classList.remove("selected");
   selectedCell = null;
   setEditEnabled(false);
+  updateDraggableCursors();
   updateStatus();
 }
 
 function selectCell(cell) {
   if (selectedCell === cell) return;
-  clearSelection();
+  if (selectedCell) selectedCell.classList.remove("selected");
   selectedCell = cell;
   selectedCell.classList.add("selected");
 
-  // Edit buttons only enabled in Select mode
-  setEditEnabled(currentMode === "select");
+  const hasData = !!readCellData(cell);
+  setEditEnabled(currentMode === "select" && hasData);
+  updateDraggableCursors();
   updateStatus();
 }
 
@@ -90,14 +102,15 @@ function setMode(mode) {
   currentMode = mode;
   if (mode === "stamp") {
     setActiveButton([modeStampBtn, modeSelectBtn], modeStampBtn);
-    // In Stamp mode, selection is optional; edit buttons disabled
     setEditEnabled(false);
+    // keep selection optional, but no drag cues
+    updateDraggableCursors();
     updateStatus();
   } else {
     setActiveButton([modeStampBtn, modeSelectBtn], modeSelectBtn);
-    // Enable edit only if something is selected
     const hasSelection = !!selectedCell && !!readCellData(selectedCell);
     setEditEnabled(hasSelection);
+    updateDraggableCursors();
     updateStatus();
   }
 }
@@ -110,9 +123,8 @@ function updateStatus() {
     return;
   }
 
-  // Select mode
   if (!selectedCell) {
-    statusText.textContent = "Mode: Select — click a filled cell to select.";
+    statusText.textContent = "Mode: Select — click a filled cell to select (then drag to move).";
     return;
   }
 
@@ -130,7 +142,23 @@ function updateStatus() {
   const my = data.mirrorY ? "on" : "off";
 
   statusText.textContent =
-    `Selected cell (${row}, ${col}) • ${shapeLabel} • rotation ${data.rotation}° • mirror ↔ ${mx} • mirror ↕ ${my}`;
+    `Selected cell (${row}, ${col}) • ${shapeLabel} • rotation ${data.rotation}° • mirror ↔ ${mx} • mirror ↕ ${my} • drag to move`;
+}
+
+function updateDraggableCursors() {
+  // Only show draggable cursor when in Select mode and selection has a shape
+  cells.forEach((cell) => {
+    const shape = cell.querySelector(".shape");
+    if (!shape) return;
+    shape.classList.remove("draggable");
+  });
+
+  if (currentMode !== "select") return;
+  if (!selectedCell) return;
+
+  const shape = selectedCell.querySelector(".shape");
+  if (!shape) return;
+  shape.classList.add("draggable");
 }
 
 // ----- History (Undo) -----
@@ -144,13 +172,12 @@ function pushState() {
 }
 
 function restoreState(snapshot) {
-  cells.forEach((cell, i) => {
-    writeCellData(cell, snapshot[i]);
-  });
+  cells.forEach((cell, i) => writeCellData(cell, snapshot[i]));
   clearSelection();
+  clearDropTarget();
 }
 
-// ----- Cell data read/write -----
+// ----- Cell data -----
 function readCellData(cell) {
   const shape = cell.querySelector(".shape");
   if (!shape) return null;
@@ -167,7 +194,6 @@ function readCellData(cell) {
 function applyShapeStyles(node, data) {
   node.style.backgroundColor = data.color;
 
-  // Rounded top-right at 40% of cell size
   if (data.shapeType === "rounded") {
     const r = `${ROUND_RATIO * 100}%`;
     node.style.borderRadius = `0 ${r} 0 0`;
@@ -175,14 +201,12 @@ function applyShapeStyles(node, data) {
     node.style.borderRadius = "0";
   }
 
-  // Transform: rotate + mirror around center
   const sx = data.mirrorX ? -1 : 1;
   const sy = data.mirrorY ? -1 : 1;
   node.style.transform = `rotate(${data.rotation}deg) scaleX(${sx}) scaleY(${sy})`;
 }
 
 function writeCellData(cell, data) {
-  // Clear
   if (!data) {
     const existing = cell.querySelector(".shape");
     if (existing) existing.remove();
@@ -213,47 +237,33 @@ for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
   cell.dataset.col = String(i % GRID_SIZE);
 
   cell.addEventListener("click", () => handleCellClick(cell));
-
   grid.appendChild(cell);
   cells.push(cell);
 }
 
 // ----- Click behavior -----
-// Stamp mode: click ANY cell to place/replace (always writes)
-// Select mode: click filled cell selects; click empty clears selection
 function handleCellClick(cell) {
   const existing = readCellData(cell);
 
   if (currentMode === "stamp") {
     pushState();
-
-    const next = {
+    writeCellData(cell, {
       shapeType: currentShapeType,
       color: currentColor,
       rotation: 0,
       mirrorX: false,
       mirrorY: false,
-    };
-
-    // Always replace if filled
-    writeCellData(cell, next);
-
-    // Optional: keep selection visual out of stamp mode
-    clearSelection();
+    });
+    clearSelection(); // keep stamp mode clean
     return;
   }
 
   // Select mode
   if (!existing) {
-    // Clicking empty cell clears selection (keeps it obvious)
     clearSelection();
     return;
   }
-
   selectCell(cell);
-
-  // Enable edit buttons now that selection exists
-  setEditEnabled(true);
 }
 
 // ----- Mode switching -----
@@ -265,7 +275,6 @@ shapeSquareBtn.addEventListener("click", () => {
   currentShapeType = "square";
   setActiveButton([shapeSquareBtn, shapeRoundedBtn], shapeSquareBtn);
 });
-
 shapeRoundedBtn.addEventListener("click", () => {
   currentShapeType = "rounded";
   setActiveButton([shapeSquareBtn, shapeRoundedBtn], shapeRoundedBtn);
@@ -276,7 +285,6 @@ colorBlueBtn.addEventListener("click", () => {
   currentColor = COLORS.blue;
   setActiveButton([colorBlueBtn, colorYellowBtn], colorBlueBtn);
 });
-
 colorYellowBtn.addEventListener("click", () => {
   currentColor = COLORS.yellow;
   setActiveButton([colorBlueBtn, colorYellowBtn], colorYellowBtn);
@@ -294,7 +302,6 @@ function requireEditableSelection() {
 rotateBtn.addEventListener("click", () => {
   const data = requireEditableSelection();
   if (!data) return;
-
   pushState();
   data.rotation = (data.rotation + 90) % 360;
   writeCellData(selectedCell, data);
@@ -304,7 +311,6 @@ rotateBtn.addEventListener("click", () => {
 mirrorXBtn.addEventListener("click", () => {
   const data = requireEditableSelection();
   if (!data) return;
-
   pushState();
   data.mirrorX = !data.mirrorX;
   writeCellData(selectedCell, data);
@@ -314,7 +320,6 @@ mirrorXBtn.addEventListener("click", () => {
 mirrorYBtn.addEventListener("click", () => {
   const data = requireEditableSelection();
   if (!data) return;
-
   pushState();
   data.mirrorY = !data.mirrorY;
   writeCellData(selectedCell, data);
@@ -324,7 +329,6 @@ mirrorYBtn.addEventListener("click", () => {
 deleteBtn.addEventListener("click", () => {
   const data = requireEditableSelection();
   if (!data) return;
-
   pushState();
   writeCellData(selectedCell, null);
   clearSelection();
@@ -336,7 +340,6 @@ clearBtn.addEventListener("click", () => {
   pushState();
   cells.forEach((cell) => writeCellData(cell, null));
   clearSelection();
-  updateStatus();
 });
 
 undoBtn.addEventListener("click", () => {
@@ -345,6 +348,113 @@ undoBtn.addEventListener("click", () => {
   restoreState(last);
   updateStatus();
 });
+
+// ----- Drag & snap (Select mode) -----
+// Using Pointer Events so it works with mouse + trackpad + touch.
+grid.addEventListener("pointerdown", (e) => {
+  if (currentMode !== "select") return;
+  if (!selectedCell) return;
+
+  const shape = selectedCell.querySelector(".shape");
+  if (!shape) return;
+
+  // only start drag if user pressed on the selected shape
+  if (!e.target.classList || !e.target.classList.contains("shape")) return;
+  if (e.target !== shape) return;
+
+  isDragging = true;
+  dragFromCell = selectedCell;
+  shape.classList.add("dragging");
+  grid.setPointerCapture(e.pointerId);
+  e.preventDefault();
+});
+
+grid.addEventListener("pointermove", (e) => {
+  if (!isDragging) return;
+
+  const cell = cellFromPointer(e.clientX, e.clientY);
+  if (!cell) {
+    clearDropTarget();
+    return;
+  }
+
+  if (currentDropCell !== cell) {
+    clearDropTarget();
+    currentDropCell = cell;
+    currentDropCell.classList.add("drop-target");
+  }
+});
+
+grid.addEventListener("pointerup", (e) => {
+  if (!isDragging) return;
+
+  const fromCell = dragFromCell;
+  const fromData = fromCell ? readCellData(fromCell) : null;
+
+  const toCell = cellFromPointer(e.clientX, e.clientY);
+
+  // cleanup drag visuals
+  const fromShape = fromCell?.querySelector(".shape");
+  if (fromShape) fromShape.classList.remove("dragging");
+  clearDropTarget();
+
+  // end drag state
+  isDragging = false;
+  dragFromCell = null;
+
+  if (!fromCell || !fromData) {
+    clearSelection();
+    return;
+  }
+
+  // If dropped outside grid, do nothing
+  if (!toCell) {
+    selectCell(fromCell);
+    return;
+  }
+
+  // If dropped on same cell, no change
+  if (toCell === fromCell) {
+    selectCell(fromCell);
+    return;
+  }
+
+  // Move = replace destination, clear source
+  pushState();
+  writeCellData(toCell, fromData);
+  writeCellData(fromCell, null);
+
+  // Select the new location
+  selectCell(toCell);
+});
+
+grid.addEventListener("pointercancel", () => {
+  if (!isDragging) return;
+  isDragging = false;
+  const fromShape = dragFromCell?.querySelector(".shape");
+  if (fromShape) fromShape.classList.remove("dragging");
+  clearDropTarget();
+  dragFromCell = null;
+});
+
+// Find which cell is under the pointer, based on grid bounding box
+function cellFromPointer(clientX, clientY) {
+  const rect = grid.getBoundingClientRect();
+
+  const x = clientX - rect.left;
+  const y = clientY - rect.top;
+
+  if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
+
+  const cellW = rect.width / GRID_SIZE;
+  const cellH = rect.height / GRID_SIZE;
+
+  const col = Math.floor(x / cellW);
+  const row = Math.floor(y / cellH);
+
+  const idx = row * GRID_SIZE + col;
+  return cells[idx] || null;
+}
 
 // ----- Export (tight-cropped SVG) -----
 downloadBtn.addEventListener("click", () => {
@@ -375,12 +485,11 @@ downloadBtn.addEventListener("click", () => {
     const w = CELL_PX;
     const h = CELL_PX;
 
-    // Shape in local coords (0..w/h)
     let shapeMarkup = "";
     if (data.shapeType === "square") {
       shapeMarkup = `<rect x="0" y="0" width="${w}" height="${h}" fill="${data.color}" />`;
     } else {
-      const r = CELL_PX * ROUND_RATIO; // 40%
+      const r = CELL_PX * ROUND_RATIO;
       const d = [
         `M 0 0`,
         `H ${w - r}`,
@@ -392,7 +501,6 @@ downloadBtn.addEventListener("click", () => {
       shapeMarkup = `<path d="${d}" fill="${data.color}" />`;
     }
 
-    // Apply rotate + mirror about center
     const cx = w / 2;
     const cy = h / 2;
     const sx = data.mirrorX ? -1 : 1;
