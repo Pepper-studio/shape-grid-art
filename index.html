@@ -3,22 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Shape Grid Art</title>
+  <title>Shape Builder</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 
 <body>
   <div class="app">
 
-    <!-- MODE (top, centered) -->
-    <h1 class="app-title">Shape Builder</h1>
+    <!-- MODE -->
     <div class="mode-bar" role="group" aria-label="Mode">
-      <button id="modeStampBtn" class="pill-btn active" type="button">
-        Stamp
-      </button>
-      <button id="modeSelectBtn" class="pill-btn" type="button">
-        Select
-      </button>
+      <button id="modeStampBtn" class="pill-btn active" type="button">Stamp</button>
+      <button id="modeSelectBtn" class="pill-btn" type="button">Select</button>
     </div>
 
     <!-- MAIN LAYOUT -->
@@ -26,39 +21,55 @@
 
       <!-- LEFT: Shape + Colour -->
       <aside class="panel left" aria-label="Shape and Colour">
-        <div class="panel-block">
+
+        <!-- SHAPE -->
+        <div class="panel-block panel-spacing">
           <div class="panel-title">Shape</div>
-          <div class="stack">
-            <button id="shapeSquareBtn" class="pill-btn active" type="button">
-              Square
+          <div class="icon-stack">
+            <button
+              id="shapeSquareBtn"
+              class="icon-btn active"
+              type="button"
+              aria-label="Square shape"
+            >
+              <span class="icon-shape square"></span>
             </button>
-            <button id="shapeRoundedBtn" class="pill-btn" type="button">
-              Rounded
+
+            <button
+              id="shapeRoundedBtn"
+              class="icon-btn"
+              type="button"
+              aria-label="Rounded corner shape"
+            >
+              <span class="icon-shape rounded"></span>
             </button>
           </div>
         </div>
 
+        <!-- COLOUR -->
         <div class="panel-block">
           <div class="panel-title">Colour</div>
-          <div class="stack">
+          <div class="icon-stack">
             <button
               id="colorBlueBtn"
-              class="pill-btn active"
+              class="color-btn active"
               type="button"
-              data-color="#6396fc"
+              aria-label="Blue colour"
             >
-              Blue
+              <span class="color-swatch blue"></span>
             </button>
+
             <button
               id="colorYellowBtn"
-              class="pill-btn"
+              class="color-btn"
               type="button"
-              data-color="#ffdd35"
+              aria-label="Yellow colour"
             >
-              Yellow
+              <span class="color-swatch yellow"></span>
             </button>
           </div>
         </div>
+
       </aside>
 
       <!-- CENTER: GRID -->
@@ -100,15 +111,9 @@
 
     <!-- BOTTOM ACTIONS -->
     <div class="bottom-bar" role="group" aria-label="Actions">
-      <button id="undoBtn" class="pill-btn" type="button">
-        Undo
-      </button>
-      <button id="clearBtn" class="pill-btn" type="button">
-        Clear
-      </button>
-      <button id="downloadBtn" class="download-btn" type="button">
-        Download
-      </button>
+      <button id="undoBtn" class="pill-btn" type="button">Undo</button>
+      <button id="clearBtn" class="pill-btn" type="button">Clear</button>
+      <button id="downloadBtn" class="download-btn" type="button">Download</button>
     </div>
 
     <!-- STATUS -->
