@@ -26,6 +26,13 @@ body {
   align-items: center;
   gap: 16px;
 }
+.app-title {
+  font-size: 14px;
+  font-weight: 500;
+  margin: 0 0 12px;
+  color: #111;
+  text-align: center;
+}
 
 /* ---------- Buttons ---------- */
 
