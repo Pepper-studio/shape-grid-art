@@ -5,85 +5,76 @@
   <title>Shape Grid Art</title>
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
-  <h1>Shape Grid Art</h1>
-  <p class="instructions">
-    Stamp mode: click any cell to place (or replace). Select mode: select a shape to rotate, mirror, or delete.
-  </p>
+  <div class="app">
+    <header class="header">
+      <h1>Shape Grid Art</h1>
+      <p class="instructions">
+        Stamp mode: click any cell to place (or replace). Select mode: select a shape to rotate, mirror, delete, or drag.
+      </p>
+    </header>
 
-  <div class="panel" role="group" aria-label="Controls">
-    <!-- Mode -->
-    <div class="group">
-      <div class="group-title">Mode</div>
-      <div class="btn-row">
-        <button id="modeStampBtn" class="pill-btn active" type="button">Stamp</button>
-        <button id="modeSelectBtn" class="pill-btn" type="button">Select</button>
-      </div>
+    <!-- MODE (top of grid, centered, horizontal) -->
+    <div class="mode-bar" role="group" aria-label="Mode">
+      <button id="modeStampBtn" class="pill-btn active" type="button">Stamp</button>
+      <button id="modeSelectBtn" class="pill-btn" type="button">Select</button>
     </div>
 
-    <!-- Shape -->
-    <div class="group">
-      <div class="group-title">Shape</div>
-      <div class="btn-row">
-        <button id="shapeSquareBtn" class="pill-btn active" type="button">Square</button>
-        <button id="shapeRoundedBtn" class="pill-btn" type="button">Rounded corner</button>
-      </div>
-    </div>
+    <!-- MAIN LAYOUT: left tools • grid • right edit -->
+    <main class="workspace">
+      <!-- LEFT: Shape + Colour (vertical, left aligned) -->
+      <aside class="side-panel left" aria-label="Shape and Colour">
+        <div class="panel-block">
+          <div class="panel-title">Shape</div>
+          <div class="stack">
+            <button id="shapeSquareBtn" class="pill-btn active" type="button">Square</button>
+            <button id="shapeRoundedBtn" class="pill-btn" type="button">Rounded corner</button>
+          </div>
+        </div>
 
-    <!-- Color -->
-    <div class="group">
-      <div class="group-title">Colour</div>
-      <div class="btn-row">
-        <button id="colorBlueBtn" class="pill-btn active" type="button" data-color="#6396fc">Blue</button>
-        <button id="colorYellowBtn" class="pill-btn" type="button" data-color="#ffdd35">Yellow</button>
-      </div>
-    </div>
+        <div class="panel-block">
+          <div class="panel-title">Colour</div>
+          <div class="stack">
+            <button id="colorBlueBtn" class="pill-btn active" type="button" data-color="#6396fc">Blue</button>
+            <button id="colorYellowBtn" class="pill-btn" type="button" data-color="#ffdd35">Yellow</button>
+          </div>
+        </div>
+      </aside>
 
-    <!-- Edit (only enabled in Select mode + when something is selected) -->
-    <div class="group">
-  <div class="group-title">Edit</div>
-  <div class="btn-row">
-    <button id="selectAllBtn" class="pill-btn" type="button" disabled>
-      Select all
-    </button>
-    
-    <button id="deselectBtn" class="pill-btn" type="button" disabled>
-      Deselect
-    </button>
-    
-    <button id="rotateBtn" class="pill-btn" type="button" disabled>
-      Rotate 90°
-    </button>
+      <!-- CENTER: Grid -->
+      <section class="center" aria-label="Grid area">
+        <div id="grid" class="grid" aria-label="5 by 5 grid"></div>
 
-    <button id="mirrorXBtn" class="pill-btn" type="button" disabled>
-      Mirror ↔
-    </button>
+        <!-- Bottom controls (centered, horizontal) -->
+        <div class="bottom-bar" role="group" aria-label="Actions">
+          <button id="undoBtn" class="pill-btn" type="button">Undo</button>
+          <button id="clearBtn" class="pill-btn" type="button">Clear</button>
+          <button id="downloadBtn" class="download-btn" type="button">Download SVG</button>
+        </div>
 
-    <button id="mirrorYBtn" class="pill-btn" type="button" disabled>
-      Mirror ↕
-    </button>
+        <p id="statusText" class="status" aria-live="polite"></p>
+      </section>
 
-    <button id="deleteBtn" class="pill-btn danger" type="button" disabled>
-      Delete
-    </button>
+      <!-- RIGHT: Edit (vertical, left aligned) -->
+      <aside class="side-panel right" aria-label="Edit tools">
+        <div class="panel-block">
+          <div class="panel-title">Edit</div>
+          <div class="stack">
+            <button id="selectAllBtn" class="pill-btn" type="button" disabled>Select all</button>
+            <button id="deselectBtn" class="pill-btn" type="button" disabled>Deselect</button>
+
+            <div class="divider"></div>
+
+            <button id="rotateBtn" class="pill-btn" type="button" disabled>Rotate 90°</button>
+            <button id="mirrorXBtn" class="pill-btn" type="button" disabled>Mirror ↔</button>
+            <button id="mirrorYBtn" class="pill-btn" type="button" disabled>Mirror ↕</button>
+            <button id="deleteBtn" class="pill-btn danger" type="button" disabled>Delete</button>
+          </div>
+        </div>
+      </aside>
+    </main>
   </div>
-</div>
-
-
-    <!-- Utility -->
-    <div class="group">
-      <div class="group-title">Utility</div>
-      <div class="btn-row">
-        <button id="undoBtn" class="pill-btn" type="button">Undo</button>
-        <button id="clearBtn" class="pill-btn" type="button">Clear grid</button>
-        <button id="downloadBtn" class="download-btn" type="button">Download SVG</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="grid" class="grid" aria-label="10 by 10 grid"></div>
-
-  <p id="statusText" class="status" aria-live="polite"></p>
 
   <script src="script.js"></script>
 </body>
