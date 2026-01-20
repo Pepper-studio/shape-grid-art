@@ -1,807 +1,333 @@
-// -----------------------------
-// Shape Builder (V8)
-// 5x5 grid • 100x100 cells
-// UI:
-//  - Left picker (Shapes/Colour) uses tile buttons
-//  - Randomize + Back buttons under picker
-// Modes:
-//  - Stamp: click any cell to place/replace
-//  - Select: click filled cell to select; drag to move (snap)
-// Multi-select:
-//  - Select all (Select mode only): selects all filled cells
-//  - Dragging any selected shape moves the whole group together
-//  - If any part would go out of bounds, drop is blocked (no partial moves)
-// Deselect:
-//  - Clears single + multi selection (Select mode only)
-// Rounded corner: ROUND_RATIO of cell size
-// Export: tight-cropped SVG
-// -----------------------------
+/* ---------- Base ---------- */
 
-const GRID_SIZE = 5;
-const CELL_PX = 100;
+* { box-sizing: border-box; }
 
-// Adjust rounding here (e.g. 0.40 = 40% of cell size)
-const ROUND_RATIO = 0.55;
-
-const COLORS = { blue: "#6396fc", yellow: "#ffdd35" };
-
-// ---------- DOM ----------
-const grid = document.getElementById("grid");
-const statusText = document.getElementById("statusText");
-
-// Mode
-const modeStampBtn = document.getElementById("modeStampBtn");
-const modeSelectBtn = document.getElementById("modeSelectBtn");
-
-// Shape
-const shapeSquareBtn = document.getElementById("shapeSquareBtn");
-const shapeRoundedBtn = document.getElementById("shapeRoundedBtn");
-
-// Color
-const colorBlueBtn = document.getElementById("colorBlueBtn");
-const colorYellowBtn = document.getElementById("colorYellowBtn");
-
-// Picker actions (new UI)
-const randomizeBtn = document.getElementById("randomizeBtn");
-const backBtn = document.getElementById("backBtn");
-
-// Edit
-const selectAllBtn = document.getElementById("selectAllBtn");
-const deselectBtn = document.getElementById("deselectBtn");
-const rotateBtn = document.getElementById("rotateBtn");
-const mirrorXBtn = document.getElementById("mirrorXBtn");
-const mirrorYBtn = document.getElementById("mirrorYBtn");
-const deleteBtn = document.getElementById("deleteBtn");
-
-// Actions
-const undoBtn = document.getElementById("undoBtn");
-const clearBtn = document.getElementById("clearBtn");
-const downloadBtn = document.getElementById("downloadBtn");
-
-// ---------- State ----------
-let currentMode = "stamp";
-let currentColor = COLORS.blue;
-let currentShapeType = "square";
-
-let selectedCell = null;           // primary selection (also anchor when group-selected)
-const multiSelected = new Set();   // Set<HTMLElement> (group selection)
-const cells = [];
-const history = [];
-
-// Drag
-let isDragging = false;
-let dragFromCell = null;
-let currentDropCell = null;
-
-// ---------- Helpers ----------
-function setActiveButton(groupButtons, activeBtn) {
-  groupButtons.forEach((b) => b.classList.remove("active"));
-  activeBtn.classList.add("active");
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+  background: #fff;
+  color: #111;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    Helvetica, Arial, sans-serif;
 }
 
-function countFilledCells() {
-  let n = 0;
-  for (const c of cells) if (c.querySelector(".shape")) n++;
-  return n;
+.app {
+  width: min(1100px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
 }
 
-function hasAnySelection() {
-  return !!selectedCell || multiSelected.size > 0;
+/* ---------- Buttons (generic) ---------- */
+
+button {
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1;
+  padding: 9px 12px;
+  border-radius: 999px;
+  border: 1px solid #ddd;
+  background: #fff;
+  color: #111;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s ease, border-color 0.15s ease,
+    color 0.15s ease, opacity 0.15s ease, transform 0.08s ease;
 }
 
-function hasSingleSelectionWithData() {
-  return (
-    currentMode === "select" &&
-    !!selectedCell &&
-    !!readCellData(selectedCell) &&
-    multiSelected.size === 0
-  );
+button:hover:not(:disabled) { background: #f4f4f4; }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.pill-btn.active {
+  background: #111;
+  color: #fff;
+  border-color: #111;
 }
 
-function setEditEnabled() {
-  const singleEditable = hasSingleSelectionWithData();
+.pill-btn.danger {
+  border-color: #e0b4b4;
+  color: #b00020;
+}
+.pill-btn.danger:hover:not(:disabled) { background: #ffecec; }
 
-  // Single tools
-  rotateBtn.disabled = !singleEditable;
-  mirrorXBtn.disabled = !singleEditable;
-  mirrorYBtn.disabled = !singleEditable;
+.download-btn {
+  background: #111;
+  color: #fff;
+  border-color: #111;
+}
+.download-btn:hover:not(:disabled) { background: #000; }
 
-  // Delete: single OR group (select mode only)
-  deleteBtn.disabled = !(currentMode === "select" && hasAnySelection());
+/* ---------- Mode bar (top centered) ---------- */
 
-  // Select all: select mode + at least one shape
-  if (selectAllBtn) {
-    selectAllBtn.disabled = !(currentMode === "select" && countFilledCells() > 0);
+.mode-bar {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+/* ---------- Main layout (left / grid / right) ---------- */
+
+.layout {
+  display: grid;
+  grid-template-columns: 260px 500px 260px;
+  gap: 28px;
+  align-items: start;
+  justify-content: center;
+}
+
+/* Panels */
+.panel { display: flex; flex-direction: column; }
+
+.panel-block {
+  border: 1px solid #ececec;
+  border-radius: 16px;
+  padding: 18px;
+  background: #fff;
+}
+
+.panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #777;
+  letter-spacing: 0.02em;
+  margin-bottom: 10px;
+}
+
+/* Vertical stacks (right-side edit buttons) */
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.divider {
+  height: 1px;
+  background: #ededed;
+  margin: 6px 0;
+  width: 100%;
+}
+
+/* Center column */
+.center { display: flex; justify-content: center; }
+
+/* ---------- NEW: Shape + Colour panel (match reference) ---------- */
+
+.picker-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  justify-items: center;
+  align-items: start;
+  margin-top: 6px;
+}
+
+.picker-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.picker-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+  margin: 0;
+}
+
+.tile-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Big square buttons */
+.tile-btn {
+  width: 110px;
+  height: 110px;
+  padding: 0;
+  border-radius: 18px;
+  border: 1px solid #e1e1e1;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
+}
+
+.tile-btn:hover:not(:disabled) {
+  background: #fff;
+  border-color: #cfcfcf;
+}
+
+.tile-btn:active:not(:disabled) { transform: translateY(1px); }
+
+/* Active state (subtle outline like your reference) */
+.tile-btn.active {
+  border-color: #bdbdbd;
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
+}
+
+/* Inner icons */
+.tile-icon {
+  width: 62px;
+  height: 62px;
+  display: block;
+  background: #d9d9d9;
+}
+
+/* Shape icons */
+.shape-square {
+  border-radius: 0;
+}
+
+.shape-rounded {
+  /* rounded TOP-RIGHT only (40% of icon size) */
+  border-radius: 0 40% 0 0;
+}
+
+/* Colour swatches */
+.swatch-blue {
+  background: #6396fc;
+  border-radius: 0;
+}
+
+.swatch-yellow {
+  background: #ffdd35;
+  border-radius: 0;
+}
+
+/* Bottom row under picker: Randomize / Back */
+.picker-actions {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  justify-items: center;
+}
+
+.picker-actions .pill-btn {
+  width: 120px;
+}
+
+/* ---------- Grid (5x5 @ 100px) ---------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  width: 500px;
+  height: 500px;
+  border: 1px solid #ddd;
+
+  /* subtle swiss grid lines */
+  background:
+    linear-gradient(#eee 1px, transparent 1px),
+    linear-gradient(90deg, #eee 1px, transparent 1px);
+  background-size: calc(100% / 5) calc(100% / 5);
+}
+
+.cell {
+  position: relative;
+  cursor: pointer;
+}
+
+.cell:hover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.03);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Shape */
+.shape {
+  position: absolute;
+  inset: 0;
+  transform-origin: center;
+  z-index: 1;
+}
+
+/* drag cues */
+.shape.draggable { cursor: grab; }
+.shape.dragging { cursor: grabbing; opacity: 0.85; }
+
+/* Selection overlays (always on top) */
+.cell.selected::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid #111;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.cell.multi-selected::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(17,17,17,0.55);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.40);
+  pointer-events: none;
+  z-index: 9;
+}
+
+.cell.drop-target::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid #111;
+  background: rgba(0,0,0,0.06);
+  pointer-events: none;
+  z-index: 11;
+}
+
+/* ---------- Bottom bar (centered) ---------- */
+
+.bottom-bar {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.status {
+  margin: 0;
+  font-size: 13px;
+  color: #666;
+  text-align: center;
+  max-width: 720px;
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 1080px) {
+  .layout {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: 18px;
   }
 
-  // Deselect: select mode + anything selected
-  if (deselectBtn) {
-    deselectBtn.disabled = !(currentMode === "select" && hasAnySelection());
-  }
-}
-
-function clearDropTarget() {
-  if (currentDropCell) currentDropCell.classList.remove("drop-target");
-  currentDropCell = null;
-}
-
-function clearMultiSelection() {
-  multiSelected.forEach((cell) => cell.classList.remove("multi-selected"));
-  multiSelected.clear();
-}
-
-function clearSelection() {
-  if (selectedCell) selectedCell.classList.remove("selected");
-  selectedCell = null;
-  clearMultiSelection();
-
-  setEditEnabled();
-  updateDraggableCursors();
-  updateStatus();
-}
-
-function selectCell(cell) {
-  if (selectedCell) selectedCell.classList.remove("selected");
-  selectedCell = cell;
-  selectedCell.classList.add("selected");
-
-  // single-select clears multi
-  clearMultiSelection();
-
-  setEditEnabled();
-  updateDraggableCursors();
-  updateStatus();
-}
-
-function selectGroup(cellsToSelect) {
-  if (selectedCell) selectedCell.classList.remove("selected");
-  selectedCell = null;
-  clearMultiSelection();
-
-  for (const c of cellsToSelect) {
-    if (c.querySelector(".shape")) {
-      multiSelected.add(c);
-      c.classList.add("multi-selected");
-    }
+  .panel {
+    width: min(540px, 100%);
   }
 
-  const first = multiSelected.values().next().value || null;
-  if (first) {
-    selectedCell = first;
-    selectedCell.classList.add("selected");
+  .grid {
+    width: min(540px, 100%);
+    height: auto;
+    aspect-ratio: 1 / 1;
   }
 
-  setEditEnabled();
-  updateDraggableCursors();
-  updateStatus();
+  /* keep picker nice on small screens */
+  .picker-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
 }
-
-function setMode(mode) {
-  currentMode = mode;
-
-  if (mode === "stamp") {
-    setActiveButton([modeStampBtn, modeSelectBtn], modeStampBtn);
-    clearSelection(); // keep stamp mode simple
-    setEditEnabled();
-    updateDraggableCursors();
-    updateStatus();
-    return;
-  }
-
-  setActiveButton([modeStampBtn, modeSelectBtn], modeSelectBtn);
-  setEditEnabled();
-  updateDraggableCursors();
-  updateStatus();
-}
-
-function updateStatus() {
-  if (!statusText) return;
-
-  if (currentMode === "stamp") {
-    statusText.textContent = "Mode: Stamp — click any cell to place/replace.";
-    return;
-  }
-
-  const filled = countFilledCells();
-
-  if (multiSelected.size > 0) {
-    statusText.textContent = `Mode: Select — ${multiSelected.size} selected • drag to move group • Delete removes all.`;
-    return;
-  }
-
-  if (!selectedCell) {
-    statusText.textContent =
-      filled > 0
-        ? "Mode: Select — click a filled cell to select (or use Select all)."
-        : "Mode: Select — no shapes yet. Switch to Stamp to place shapes.";
-    return;
-  }
-
-  const data = readCellData(selectedCell);
-  const row = parseInt(selectedCell.dataset.row, 10) + 1;
-  const col = parseInt(selectedCell.dataset.col, 10) + 1;
-
-  if (!data) {
-    statusText.textContent = `Mode: Select — cell (${row}, ${col}) is empty. Click a filled cell.`;
-    return;
-  }
-
-  const shapeLabel = data.shapeType === "rounded" ? "Rounded corner" : "Square";
-  const mx = data.mirrorX ? "on" : "off";
-  const my = data.mirrorY ? "on" : "off";
-
-  statusText.textContent =
-    `Selected cell (${row}, ${col}) • ${shapeLabel} • rotation ${data.rotation}° • mirror ↔ ${mx} • mirror ↕ ${my} • drag to move`;
-}
-
-function updateDraggableCursors() {
-  for (const cell of cells) {
-    const shape = cell.querySelector(".shape");
-    if (shape) shape.classList.remove("draggable");
-  }
-
-  if (currentMode !== "select") return;
-
-  if (multiSelected.size > 0) {
-    multiSelected.forEach((cell) => {
-      const shape = cell.querySelector(".shape");
-      if (shape) shape.classList.add("draggable");
-    });
-    return;
-  }
-
-  if (!selectedCell) return;
-  const shape = selectedCell.querySelector(".shape");
-  if (shape) shape.classList.add("draggable");
-}
-
-// ---------- History ----------
-function pushState() {
-  const snapshot = cells.map((cell) => {
-    const data = readCellData(cell);
-    return data ? { ...data } : null;
-  });
-  history.push(snapshot);
-  if (history.length > 100) history.shift();
-}
-
-function restoreState(snapshot) {
-  cells.forEach((cell, i) => writeCellData(cell, snapshot[i]));
-  clearSelection();
-  clearDropTarget();
-  setEditEnabled();
-  updateDraggableCursors();
-  updateStatus();
-}
-
-// ---------- Cell data ----------
-function readCellData(cell) {
-  const shape = cell.querySelector(".shape");
-  if (!shape) return null;
-
-  return {
-    shapeType: shape.dataset.shapeType || "square",
-    color: shape.dataset.color || COLORS.blue,
-    rotation: parseInt(shape.dataset.rotation || "0", 10) || 0,
-    mirrorX: shape.dataset.mirrorX === "true",
-    mirrorY: shape.dataset.mirrorY === "true",
-  };
-}
-
-function applyShapeStyles(node, data) {
-  node.style.backgroundColor = data.color;
-
-  if (data.shapeType === "rounded") {
-    const r = `${ROUND_RATIO * 100}%`;
-    node.style.borderRadius = `0 ${r} 0 0`; // top-right rounded
-  } else {
-    node.style.borderRadius = "0";
-  }
-
-  const sx = data.mirrorX ? -1 : 1;
-  const sy = data.mirrorY ? -1 : 1;
-  node.style.transform = `rotate(${data.rotation}deg) scaleX(${sx}) scaleY(${sy})`;
-}
-
-function writeCellData(cell, data) {
-  if (!data) {
-    const existing = cell.querySelector(".shape");
-    if (existing) existing.remove();
-    return;
-  }
-
-  let shape = cell.querySelector(".shape");
-  if (!shape) {
-    shape = document.createElement("div");
-    shape.classList.add("shape");
-    cell.appendChild(shape);
-  }
-
-  shape.dataset.shapeType = data.shapeType;
-  shape.dataset.color = data.color;
-  shape.dataset.rotation = String(data.rotation);
-  shape.dataset.mirrorX = String(!!data.mirrorX);
-  shape.dataset.mirrorY = String(!!data.mirrorY);
-
-  applyShapeStyles(shape, data);
-}
-
-// ---------- Build grid ----------
-for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
-  const cell = document.createElement("div");
-  cell.classList.add("cell");
-  cell.dataset.row = String(Math.floor(i / GRID_SIZE));
-  cell.dataset.col = String(i % GRID_SIZE);
-  cell.addEventListener("click", () => handleCellClick(cell));
-  grid.appendChild(cell);
-  cells.push(cell);
-}
-
-// ---------- Click behavior ----------
-function handleCellClick(cell) {
-  const existing = readCellData(cell);
-
-  if (currentMode === "stamp") {
-    pushState();
-    writeCellData(cell, {
-      shapeType: currentShapeType,
-      color: currentColor,
-      rotation: 0,
-      mirrorX: false,
-      mirrorY: false,
-    });
-    clearSelection();
-    return;
-  }
-
-  // Select mode
-  if (!existing) {
-    clearSelection();
-    return;
-  }
-  selectCell(cell);
-}
-
-// ---------- Mode switching ----------
-modeStampBtn.addEventListener("click", () => setMode("stamp"));
-modeSelectBtn.addEventListener("click", () => setMode("select"));
-
-// ---------- Shape selection ----------
-shapeSquareBtn.addEventListener("click", () => {
-  currentShapeType = "square";
-  setActiveButton([shapeSquareBtn, shapeRoundedBtn], shapeSquareBtn);
-});
-shapeRoundedBtn.addEventListener("click", () => {
-  currentShapeType = "rounded";
-  setActiveButton([shapeSquareBtn, shapeRoundedBtn], shapeRoundedBtn);
-});
-
-// ---------- Color selection ----------
-colorBlueBtn.addEventListener("click", () => {
-  currentColor = COLORS.blue;
-  setActiveButton([colorBlueBtn, colorYellowBtn], colorBlueBtn);
-});
-colorYellowBtn.addEventListener("click", () => {
-  currentColor = COLORS.yellow;
-  setActiveButton([colorBlueBtn, colorYellowBtn], colorYellowBtn);
-});
-
-// ---------- Picker actions ----------
-function randomInt(max) {
-  return Math.floor(Math.random() * max);
-}
-
-function randomRotation() {
-  return [0, 90, 180, 270][randomInt(4)];
-}
-
-function randomShapeType() {
-  return Math.random() < 0.5 ? "square" : "rounded";
-}
-
-function randomColor() {
-  return Math.random() < 0.5 ? COLORS.blue : COLORS.yellow;
-}
-
-// Randomize: fills the grid with a playful, moderate density pattern
-if (randomizeBtn) {
-  randomizeBtn.addEventListener("click", () => {
-    pushState();
-    clearSelection();
-
-    const FILL_PROB = 0.55; // moderate density
-    cells.forEach((cell) => {
-      if (Math.random() < FILL_PROB) {
-        writeCellData(cell, {
-          shapeType: randomShapeType(),
-          color: randomColor(),
-          rotation: randomRotation(),
-          mirrorX: false,
-          mirrorY: false,
-        });
-      } else {
-        writeCellData(cell, null);
-      }
-    });
-
-    setEditEnabled();
-    updateStatus();
-  });
-}
-
-// Back: returns to Stamp mode (simple + intuitive for clients)
-if (backBtn) {
-  backBtn.addEventListener("click", () => {
-    setMode("stamp");
-  });
-}
-
-// ---------- Select all ----------
-if (selectAllBtn) {
-  selectAllBtn.addEventListener("click", () => {
-    if (currentMode !== "select") return;
-    const filledCells = cells.filter((c) => c.querySelector(".shape"));
-    if (filledCells.length === 0) {
-      clearSelection();
-      return;
-    }
-    selectGroup(filledCells);
-  });
-}
-
-// ---------- Deselect ----------
-if (deselectBtn) {
-  deselectBtn.addEventListener("click", () => {
-    if (currentMode !== "select") return;
-    clearSelection();
-  });
-}
-
-// ---------- Edit actions (single selection only) ----------
-function requireEditableSingleSelection() {
-  if (!hasSingleSelectionWithData()) return null;
-  return readCellData(selectedCell);
-}
-
-rotateBtn.addEventListener("click", () => {
-  const data = requireEditableSingleSelection();
-  if (!data) return;
-
-  pushState();
-  data.rotation = (data.rotation + 90) % 360;
-  writeCellData(selectedCell, data);
-
-  setEditEnabled();
-  updateStatus();
-});
-
-mirrorXBtn.addEventListener("click", () => {
-  const data = requireEditableSingleSelection();
-  if (!data) return;
-
-  pushState();
-  data.mirrorX = !data.mirrorX;
-  writeCellData(selectedCell, data);
-
-  setEditEnabled();
-  updateStatus();
-});
-
-mirrorYBtn.addEventListener("click", () => {
-  const data = requireEditableSingleSelection();
-  if (!data) return;
-
-  pushState();
-  data.mirrorY = !data.mirrorY;
-  writeCellData(selectedCell, data);
-
-  setEditEnabled();
-  updateStatus();
-});
-
-deleteBtn.addEventListener("click", () => {
-  if (currentMode !== "select") return;
-
-  // Group delete
-  if (multiSelected.size > 0) {
-    pushState();
-    multiSelected.forEach((cell) => writeCellData(cell, null));
-    clearSelection();
-    return;
-  }
-
-  // Single delete
-  const data = requireEditableSingleSelection();
-  if (!data) return;
-
-  pushState();
-  writeCellData(selectedCell, null);
-  clearSelection();
-});
-
-// ---------- Actions ----------
-clearBtn.addEventListener("click", () => {
-  pushState();
-  cells.forEach((cell) => writeCellData(cell, null));
-  clearSelection();
-});
-
-undoBtn.addEventListener("click", () => {
-  const last = history.pop();
-  if (!last) return;
-  restoreState(last);
-  setMode(currentMode);
-});
-
-// ---------- Drag & snap (single + group) ----------
-grid.addEventListener("pointerdown", (e) => {
-  if (currentMode !== "select") return;
-
-  const target = e.target;
-  if (!target || !target.classList || !target.classList.contains("shape")) return;
-
-  const cell = target.closest(".cell");
-  if (!cell) return;
-
-  // Group drag must start from group member
-  if (multiSelected.size > 0) {
-    if (!multiSelected.has(cell)) return;
-  } else {
-    // Single drag must be selected cell
-    if (!selectedCell || cell !== selectedCell) return;
-  }
-
-  isDragging = true;
-  dragFromCell = cell;
-
-  target.classList.add("dragging");
-  grid.setPointerCapture(e.pointerId);
-  e.preventDefault();
-});
-
-grid.addEventListener("pointermove", (e) => {
-  if (!isDragging) return;
-
-  const cell = cellFromPointer(e.clientX, e.clientY);
-  if (!cell) {
-    clearDropTarget();
-    return;
-  }
-
-  if (currentDropCell !== cell) {
-    clearDropTarget();
-    currentDropCell = cell;
-    currentDropCell.classList.add("drop-target");
-  }
-});
-
-grid.addEventListener("pointerup", (e) => {
-  if (!isDragging) return;
-
-  const toCell = cellFromPointer(e.clientX, e.clientY);
-
-  // Cleanup drag visuals
-  const fromShape = dragFromCell?.querySelector(".shape");
-  if (fromShape) fromShape.classList.remove("dragging");
-  clearDropTarget();
-
-  isDragging = false;
-
-  if (!toCell) {
-    dragFromCell = null;
-    return;
-  }
-
-  const moveCells =
-    multiSelected.size > 0 ? Array.from(multiSelected) : selectedCell ? [selectedCell] : [];
-
-  if (moveCells.length === 0) {
-    dragFromCell = null;
-    return;
-  }
-
-  // Anchor delta (grid units)
-  const fromRow = parseInt(dragFromCell.dataset.row, 10);
-  const fromCol = parseInt(dragFromCell.dataset.col, 10);
-  const toRow = parseInt(toCell.dataset.row, 10);
-  const toCol = parseInt(toCell.dataset.col, 10);
-
-  const dRow = toRow - fromRow;
-  const dCol = toCol - fromCol;
-
-  if (dRow === 0 && dCol === 0) {
-    dragFromCell = null;
-    return;
-  }
-
-  // Build plan + bounds check
-  const plan = [];
-  for (const cell of moveCells) {
-    const data = readCellData(cell);
-    if (!data) continue;
-
-    const srcRow = parseInt(cell.dataset.row, 10);
-    const srcCol = parseInt(cell.dataset.col, 10);
-    const destRow = srcRow + dRow;
-    const destCol = srcCol + dCol;
-
-    if (destRow < 0 || destCol < 0 || destRow >= GRID_SIZE || destCol >= GRID_SIZE) {
-      dragFromCell = null;
-      return; // block whole move
-    }
-
-    plan.push({ srcRow, srcCol, destRow, destCol, data });
-  }
-
-  if (plan.length === 0) {
-    dragFromCell = null;
-    return;
-  }
-
-  // Execute atomically using a buffer (safe for overlapping moves)
-  pushState();
-
-  const srcKeys = new Set();
-  const destMap = new Map();
-
-  for (const p of plan) {
-    srcKeys.add(`${p.srcRow},${p.srcCol}`);
-    destMap.set(`${p.destRow},${p.destCol}`, p.data); // last write wins if overlap
-  }
-
-  // Clear sources
-  srcKeys.forEach((key) => {
-    const [r, c] = key.split(",").map(Number);
-    writeCellData(cells[r * GRID_SIZE + c], null);
-  });
-
-  // Write destinations (replacement behavior)
-  destMap.forEach((data, key) => {
-    const [r, c] = key.split(",").map(Number);
-    writeCellData(cells[r * GRID_SIZE + c], data);
-  });
-
-  // Rebuild selection on new locations
-  const movedCells = [];
-  destMap.forEach((_data, key) => {
-    const [r, c] = key.split(",").map(Number);
-    movedCells.push(cells[r * GRID_SIZE + c]);
-  });
-
-  if (moveCells.length > 1) {
-    selectGroup(movedCells);
-  } else {
-    selectCell(movedCells[0]);
-  }
-
-  dragFromCell = null;
-});
-
-grid.addEventListener("pointercancel", () => {
-  if (!isDragging) return;
-  isDragging = false;
-
-  const fromShape = dragFromCell?.querySelector(".shape");
-  if (fromShape) fromShape.classList.remove("dragging");
-
-  clearDropTarget();
-  dragFromCell = null;
-});
-
-function cellFromPointer(clientX, clientY) {
-  const rect = grid.getBoundingClientRect();
-  const x = clientX - rect.left;
-  const y = clientY - rect.top;
-
-  if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null;
-
-  const cellW = rect.width / GRID_SIZE;
-  const cellH = rect.height / GRID_SIZE;
-
-  const col = Math.floor(x / cellW);
-  const row = Math.floor(y / cellH);
-
-  return cells[row * GRID_SIZE + col] || null;
-}
-
-// ---------- Export ----------
-downloadBtn.addEventListener("click", () => {
-  const { minRow, maxRow, minCol, maxCol } = findUsedBounds();
-  if (minRow === Infinity) {
-    alert("No artwork found! Place shapes before exporting.");
-    return;
-  }
-
-  const cols = maxCol - minCol + 1;
-  const rows = maxRow - minRow + 1;
-  const svgWidth = cols * CELL_PX;
-  const svgHeight = rows * CELL_PX;
-
-  const shapesSvg = [];
-
-  cells.forEach((cell) => {
-    const data = readCellData(cell);
-    if (!data) return;
-
-    const row = parseInt(cell.dataset.row, 10);
-    const col = parseInt(cell.dataset.col, 10);
-    const x = (col - minCol) * CELL_PX;
-    const y = (row - minRow) * CELL_PX;
-
-    const w = CELL_PX;
-    const h = CELL_PX;
-
-    let shapeMarkup = "";
-    if (data.shapeType === "square") {
-      shapeMarkup = `<rect x="0" y="0" width="${w}" height="${h}" fill="${data.color}" />`;
-    } else {
-      const r = CELL_PX * ROUND_RATIO;
-      const d = [`M 0 0`, `H ${w - r}`, `Q ${w} 0 ${w} ${r}`, `V ${h}`, `H 0`, `Z`].join(" ");
-      shapeMarkup = `<path d="${d}" fill="${data.color}" />`;
-    }
-
-    const cx = w / 2;
-    const cy = h / 2;
-    const sx = data.mirrorX ? -1 : 1;
-    const sy = data.mirrorY ? -1 : 1;
-    const a = data.rotation;
-
-    const group = `
-  <g transform="translate(${x} ${y})">
-    <g transform="translate(${cx} ${cy})">
-      <g transform="rotate(${a})">
-        <g transform="scale(${sx} ${sy})">
-          <g transform="translate(${-cx} ${-cy})">
-            ${shapeMarkup}
-          </g>
-        </g>
-      </g>
-    </g>
-  </g>
-    `.trim();
-
-    shapesSvg.push(group);
-  });
-
-  const svgContent = `
-<svg xmlns="http://www.w3.org/2000/svg"
-     width="${svgWidth}" height="${svgHeight}"
-     viewBox="0 0 ${svgWidth} ${svgHeight}">
-${shapesSvg.join("\n")}
-</svg>
-  `.trim();
-
-  const blob = new Blob([svgContent], { type: "image/svg+xml" });
-  const url = URL.createObjectURL(blob);
-
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = "shape-builder.svg";
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  URL.revokeObjectURL(url);
-});
-
-function findUsedBounds() {
-  let minRow = Infinity, maxRow = -Infinity, minCol = Infinity, maxCol = -Infinity;
-
-  cells.forEach((cell) => {
-    if (cell.querySelector(".shape")) {
-      const row = parseInt(cell.dataset.row, 10);
-      const col = parseInt(cell.dataset.col, 10);
-      minRow = Math.min(minRow, row);
-      maxRow = Math.max(maxRow, row);
-      minCol = Math.min(minCol, col);
-      maxCol = Math.max(maxCol, col);
-    }
-  });
-
-  return { minRow, maxRow, minCol, maxCol };
-}
-
-// ---------- Init ----------
-setMode("stamp");
-setEditEnabled();
-updateStatus();
