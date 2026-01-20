@@ -8,11 +8,19 @@
 <body>
   <h1>Shape Grid Art</h1>
   <p class="instructions">
-    Click an empty cell to place a shape. Click a filled cell to select it.
-    Use the controls to rotate, mirror, delete — or turn on Layer mode to stack shapes.
+    Stamp mode: click any cell to place (or replace). Select mode: select a shape to rotate, mirror, or delete.
   </p>
 
   <div class="panel" role="group" aria-label="Controls">
+    <!-- Mode -->
+    <div class="group">
+      <div class="group-title">Mode</div>
+      <div class="btn-row">
+        <button id="modeStampBtn" class="pill-btn active" type="button">Stamp</button>
+        <button id="modeSelectBtn" class="pill-btn" type="button">Select</button>
+      </div>
+    </div>
+
     <!-- Shape -->
     <div class="group">
       <div class="group-title">Shape</div>
@@ -31,26 +39,7 @@
       </div>
     </div>
 
-    <!-- Placement -->
-    <div class="group">
-      <div class="group-title">Placement</div>
-
-      <!-- Toggle (B): Layer mode -->
-      <div class="toggle-row" aria-label="Layer mode">
-        <span class="toggle-label">Layer mode</span>
-
-        <label class="switch" title="When on, clicks add a shape on top instead of replacing the cell">
-          <input id="layerToggle" type="checkbox" />
-          <span class="slider"></span>
-        </label>
-      </div>
-
-      <div class="hint">
-        Off = Replace • On = Stack
-      </div>
-    </div>
-
-    <!-- Edit (disabled until selection) -->
+    <!-- Edit (only enabled in Select mode + when something is selected) -->
     <div class="group">
       <div class="group-title">Edit</div>
       <div class="btn-row">
