@@ -171,6 +171,16 @@ button:disabled {
   z-index: 5;
 }
 
+.cell.multi-selected::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(17,17,17,0.55);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.4);
+  pointer-events: none;
+  z-index: 4;
+}
+
 /* Optional: drop target cue during drag */
 .cell.drop-target::after {
   content: "";
