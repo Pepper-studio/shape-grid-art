@@ -1,6 +1,9 @@
 // -----------------------------
-// Shape Builder (V7)
+// Shape Builder (V8)
 // 5x5 grid • 100x100 cells
+// UI:
+//  - Left picker (Shapes/Colour) uses tile buttons
+//  - Randomize + Back buttons under picker
 // Modes:
 //  - Stamp: click any cell to place/replace
 //  - Select: click filled cell to select; drag to move (snap)
@@ -17,8 +20,7 @@
 const GRID_SIZE = 5;
 const CELL_PX = 100;
 
-// Controls rounding for the rounded shape.
-// 0.40 = 40% of cell, 0.55 = 55% of cell, etc.
+// Adjust rounding here (e.g. 0.40 = 40% of cell size)
 const ROUND_RATIO = 0.55;
 
 const COLORS = { blue: "#6396fc", yellow: "#ffdd35" };
@@ -39,6 +41,10 @@ const shapeRoundedBtn = document.getElementById("shapeRoundedBtn");
 const colorBlueBtn = document.getElementById("colorBlueBtn");
 const colorYellowBtn = document.getElementById("colorYellowBtn");
 
+// Picker actions (new UI)
+const randomizeBtn = document.getElementById("randomizeBtn");
+const backBtn = document.getElementById("backBtn");
+
 // Edit
 const selectAllBtn = document.getElementById("selectAllBtn");
 const deselectBtn = document.getElementById("deselectBtn");
@@ -57,8 +63,8 @@ let currentMode = "stamp";
 let currentColor = COLORS.blue;
 let currentShapeType = "square";
 
-let selectedCell = null;                 // primary selection (also anchor when group-selected)
-const multiSelected = new Set();         // Set<HTMLElement> (group selection)
+let selectedCell = null;           // primary selection (also anchor when group-selected)
+const multiSelected = new Set();   // Set<HTMLElement> (group selection)
 const cells = [];
 const history = [];
 
@@ -93,22 +99,22 @@ function hasSingleSelectionWithData() {
 }
 
 function setEditEnabled() {
-  // Rotate/mirror only for single selection
   const singleEditable = hasSingleSelectionWithData();
 
+  // Single tools
   rotateBtn.disabled = !singleEditable;
   mirrorXBtn.disabled = !singleEditable;
   mirrorYBtn.disabled = !singleEditable;
 
-  // Delete works for single OR group selection (Select mode only)
+  // Delete: single OR group (select mode only)
   deleteBtn.disabled = !(currentMode === "select" && hasAnySelection());
 
-  // Select all: Select mode + at least one shape
+  // Select all: select mode + at least one shape
   if (selectAllBtn) {
     selectAllBtn.disabled = !(currentMode === "select" && countFilledCells() > 0);
   }
 
-  // Deselect: Select mode + anything selected (single or multi)
+  // Deselect: select mode + anything selected
   if (deselectBtn) {
     deselectBtn.disabled = !(currentMode === "select" && hasAnySelection());
   }
@@ -148,12 +154,10 @@ function selectCell(cell) {
 }
 
 function selectGroup(cellsToSelect) {
-  // Clear current visual selection
   if (selectedCell) selectedCell.classList.remove("selected");
   selectedCell = null;
   clearMultiSelection();
 
-  // Add multi-selected
   for (const c of cellsToSelect) {
     if (c.querySelector(".shape")) {
       multiSelected.add(c);
@@ -161,7 +165,6 @@ function selectGroup(cellsToSelect) {
     }
   }
 
-  // Anchor (first)
   const first = multiSelected.values().next().value || null;
   if (first) {
     selectedCell = first;
@@ -232,7 +235,6 @@ function updateStatus() {
 }
 
 function updateDraggableCursors() {
-  // Clear previous
   for (const cell of cells) {
     const shape = cell.querySelector(".shape");
     if (shape) shape.classList.remove("draggable");
@@ -330,9 +332,7 @@ for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
   cell.classList.add("cell");
   cell.dataset.row = String(Math.floor(i / GRID_SIZE));
   cell.dataset.col = String(i % GRID_SIZE);
-
   cell.addEventListener("click", () => handleCellClick(cell));
-
   grid.appendChild(cell);
   cells.push(cell);
 }
@@ -359,7 +359,6 @@ function handleCellClick(cell) {
     clearSelection();
     return;
   }
-
   selectCell(cell);
 }
 
@@ -387,17 +386,65 @@ colorYellowBtn.addEventListener("click", () => {
   setActiveButton([colorBlueBtn, colorYellowBtn], colorYellowBtn);
 });
 
+// ---------- Picker actions ----------
+function randomInt(max) {
+  return Math.floor(Math.random() * max);
+}
+
+function randomRotation() {
+  return [0, 90, 180, 270][randomInt(4)];
+}
+
+function randomShapeType() {
+  return Math.random() < 0.5 ? "square" : "rounded";
+}
+
+function randomColor() {
+  return Math.random() < 0.5 ? COLORS.blue : COLORS.yellow;
+}
+
+// Randomize: fills the grid with a playful, moderate density pattern
+if (randomizeBtn) {
+  randomizeBtn.addEventListener("click", () => {
+    pushState();
+    clearSelection();
+
+    const FILL_PROB = 0.55; // moderate density
+    cells.forEach((cell) => {
+      if (Math.random() < FILL_PROB) {
+        writeCellData(cell, {
+          shapeType: randomShapeType(),
+          color: randomColor(),
+          rotation: randomRotation(),
+          mirrorX: false,
+          mirrorY: false,
+        });
+      } else {
+        writeCellData(cell, null);
+      }
+    });
+
+    setEditEnabled();
+    updateStatus();
+  });
+}
+
+// Back: returns to Stamp mode (simple + intuitive for clients)
+if (backBtn) {
+  backBtn.addEventListener("click", () => {
+    setMode("stamp");
+  });
+}
+
 // ---------- Select all ----------
 if (selectAllBtn) {
   selectAllBtn.addEventListener("click", () => {
     if (currentMode !== "select") return;
-
     const filledCells = cells.filter((c) => c.querySelector(".shape"));
     if (filledCells.length === 0) {
       clearSelection();
       return;
     }
-
     selectGroup(filledCells);
   });
 }
@@ -496,11 +543,11 @@ grid.addEventListener("pointerdown", (e) => {
   const cell = target.closest(".cell");
   if (!cell) return;
 
-  // Group drag: must start from a member of the group
+  // Group drag must start from group member
   if (multiSelected.size > 0) {
     if (!multiSelected.has(cell)) return;
   } else {
-    // Single drag: must be the selected cell
+    // Single drag must be selected cell
     if (!selectedCell || cell !== selectedCell) return;
   }
 
@@ -554,9 +601,8 @@ grid.addEventListener("pointerup", (e) => {
   }
 
   // Anchor delta (grid units)
-  const fromAnchor = dragFromCell;
-  const fromRow = parseInt(fromAnchor.dataset.row, 10);
-  const fromCol = parseInt(fromAnchor.dataset.col, 10);
+  const fromRow = parseInt(dragFromCell.dataset.row, 10);
+  const fromCol = parseInt(dragFromCell.dataset.col, 10);
   const toRow = parseInt(toCell.dataset.row, 10);
   const toCol = parseInt(toCell.dataset.col, 10);
 
@@ -576,23 +622,15 @@ grid.addEventListener("pointerup", (e) => {
 
     const srcRow = parseInt(cell.dataset.row, 10);
     const srcCol = parseInt(cell.dataset.col, 10);
+    const destRow = srcRow + dRow;
+    const destCol = srcCol + dCol;
 
-    const r = srcRow + dRow;
-    const c = srcCol + dCol;
-
-    // Block if any out of bounds
-    if (r < 0 || c < 0 || r >= GRID_SIZE || c >= GRID_SIZE) {
+    if (destRow < 0 || destCol < 0 || destRow >= GRID_SIZE || destCol >= GRID_SIZE) {
       dragFromCell = null;
-      return;
+      return; // block whole move
     }
 
-    plan.push({
-      srcRow,
-      srcCol,
-      destRow: r,
-      destCol: c,
-      data,
-    });
+    plan.push({ srcRow, srcCol, destRow, destCol, data });
   }
 
   if (plan.length === 0) {
@@ -600,19 +638,19 @@ grid.addEventListener("pointerup", (e) => {
     return;
   }
 
-  // Execute atomically with a buffer
+  // Execute atomically using a buffer (safe for overlapping moves)
   pushState();
 
+  const srcKeys = new Set();
   const destMap = new Map();
-  const srcSet = new Set();
 
   for (const p of plan) {
-    srcSet.add(`${p.srcRow},${p.srcCol}`);
-    destMap.set(`${p.destRow},${p.destCol}`, p.data);
+    srcKeys.add(`${p.srcRow},${p.srcCol}`);
+    destMap.set(`${p.destRow},${p.destCol}`, p.data); // last write wins if overlap
   }
 
   // Clear sources
-  srcSet.forEach((key) => {
+  srcKeys.forEach((key) => {
     const [r, c] = key.split(",").map(Number);
     writeCellData(cells[r * GRID_SIZE + c], null);
   });
@@ -623,7 +661,7 @@ grid.addEventListener("pointerup", (e) => {
     writeCellData(cells[r * GRID_SIZE + c], data);
   });
 
-  // Rebuild selection
+  // Rebuild selection on new locations
   const movedCells = [];
   destMap.forEach((_data, key) => {
     const [r, c] = key.split(",").map(Number);
@@ -663,8 +701,7 @@ function cellFromPointer(clientX, clientY) {
   const col = Math.floor(x / cellW);
   const row = Math.floor(y / cellH);
 
-  const idx = row * GRID_SIZE + col;
-  return cells[idx] || null;
+  return cells[row * GRID_SIZE + col] || null;
 }
 
 // ---------- Export ----------
@@ -748,10 +785,7 @@ ${shapesSvg.join("\n")}
 });
 
 function findUsedBounds() {
-  let minRow = Infinity,
-    maxRow = -Infinity,
-    minCol = Infinity,
-    maxCol = -Infinity;
+  let minRow = Infinity, maxRow = -Infinity, minCol = Infinity, maxCol = -Infinity;
 
   cells.forEach((cell) => {
     if (cell.querySelector(".shape")) {
