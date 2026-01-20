@@ -5,15 +5,11 @@
 body {
   margin: 0;
   min-height: 100vh;
-
-  /* Center the whole UI on the page */
   display: grid;
   place-items: center;
-
-  padding: 24px;
+  padding: 28px;
   background: #fff;
   color: #111;
-
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     Helvetica, Arial, sans-serif;
 }
@@ -23,7 +19,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
 }
 
 /* ---------- Buttons (generic) ---------- */
@@ -38,8 +34,7 @@ button {
   background: #fff;
   color: #111;
   cursor: pointer;
-  text-align: left;
-
+  text-align: center;
   transition: background 0.15s ease, border-color 0.15s ease,
     color 0.15s ease, opacity 0.15s ease, transform 0.08s ease;
 }
@@ -64,7 +59,6 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
   background: #111;
   color: #fff;
   border-color: #111;
-  text-align: center;
 }
 .download-btn:hover:not(:disabled) { background: #000; }
 
@@ -81,8 +75,8 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .layout {
   display: grid;
-  grid-template-columns: 220px 500px 220px;
-  gap: 22px;
+  grid-template-columns: 260px 500px 260px;
+  gap: 28px;
   align-items: start;
   justify-content: center;
 }
@@ -91,9 +85,9 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
 .panel { display: flex; flex-direction: column; }
 
 .panel-block {
-  border: 1px solid #e6e6e6;
-  border-radius: 14px;
-  padding: 14px;
+  border: 1px solid #ececec;
+  border-radius: 16px;
+  padding: 18px;
   background: #fff;
 }
 
@@ -105,91 +99,130 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
   margin-bottom: 10px;
 }
 
-/* Adds extra space between Shape and Colour blocks */
-.panel-spacing { margin-bottom: 18px; }
-
-/* Vertical stacks (text buttons) */
+/* Vertical stacks (right-side edit buttons) */
 .stack {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  align-items: flex-start;
 }
 
 .divider {
   height: 1px;
   background: #ededed;
   margin: 6px 0;
+  width: 100%;
 }
 
 /* Center column */
 .center { display: flex; justify-content: center; }
 
-/* ---------- Icon button stacks (Shape + Colour) ---------- */
+/* ---------- NEW: Shape + Colour panel (match reference) ---------- */
 
-.icon-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+.picker-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px;
+  justify-items: center;
+  align-items: start;
+  margin-top: 6px;
 }
 
-/* Icon buttons (shape icons) */
-.icon-btn,
-.color-btn {
-  width: 44px;
-  height: 44px;
+.picker-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+}
+
+.picker-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+  margin: 0;
+}
+
+.tile-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* Big square buttons */
+.tile-btn {
+  width: 110px;
+  height: 110px;
   padding: 0;
-  border-radius: 12px;
-  border: 1px solid #ddd;
+  border-radius: 18px;
+  border: 1px solid #e1e1e1;
   background: #fff;
   display: grid;
   place-items: center;
-  text-align: center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
 }
 
-/* Active state for icon buttons (matches JS .active class) */
-.icon-btn.active,
-.color-btn.active {
-  border-color: #111;
-  box-shadow: 0 0 0 2px rgba(17, 17, 17, 0.20);
+.tile-btn:hover:not(:disabled) {
+  background: #fff;
+  border-color: #cfcfcf;
 }
 
-/* Shape icon primitives */
-.icon-shape {
-  width: 22px;
-  height: 22px;
-  border: 2px solid #111;
-  background: transparent;
+.tile-btn:active:not(:disabled) { transform: translateY(1px); }
+
+/* Active state (subtle outline like your reference) */
+.tile-btn.active {
+  border-color: #bdbdbd;
+  box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
+}
+
+/* Inner icons */
+.tile-icon {
+  width: 62px;
+  height: 62px;
   display: block;
+  background: #d9d9d9;
 }
 
-.icon-shape.square {
+/* Shape icons */
+.shape-square {
   border-radius: 0;
 }
 
-/* Rounded top-right corner only */
-.icon-shape.rounded {
+.shape-rounded {
+  /* rounded TOP-RIGHT only (40% of icon size) */
   border-radius: 0 40% 0 0;
 }
 
 /* Colour swatches */
-.color-swatch {
-  width: 22px;
-  height: 22px;
-  border-radius: 6px;
-  border: 2px solid rgba(17, 17, 17, 0.25);
-  display: block;
+.swatch-blue {
+  background: #6396fc;
+  border-radius: 0;
 }
 
-.color-swatch.blue { background: #6396fc; }
-.color-swatch.yellow { background: #ffdd35; }
+.swatch-yellow {
+  background: #ffdd35;
+  border-radius: 0;
+}
+
+/* Bottom row under picker: Randomize / Back */
+.picker-actions {
+  margin-top: 22px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  justify-items: center;
+}
+
+.picker-actions .pill-btn {
+  width: 120px;
+}
 
 /* ---------- Grid (5x5 @ 100px) ---------- */
 
 .grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  width: 500px;   /* 5 * 100 */
-  height: 500px;  /* 5 * 100 */
+  width: 500px;
+  height: 500px;
   border: 1px solid #ddd;
 
   /* subtle swiss grid lines */
@@ -263,7 +296,6 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
   justify-content: center;
   gap: 10px;
   width: 100%;
-  margin-top: 2px;
 }
 
 .status {
@@ -276,26 +308,26 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
 
 /* ---------- Responsive ---------- */
 
-@media (max-width: 1020px) {
+@media (max-width: 1080px) {
   .layout {
     grid-template-columns: 1fr;
     justify-items: center;
-    gap: 14px;
+    gap: 18px;
   }
 
   .panel {
-    width: min(520px, 100%);
+    width: min(540px, 100%);
   }
 
   .grid {
-    width: min(520px, 100%);
+    width: min(540px, 100%);
     height: auto;
     aspect-ratio: 1 / 1;
   }
 
-  button { text-align: center; }
-
-  /* For smaller screens, make stacks horizontal */
-  .stack { flex-direction: row; flex-wrap: wrap; }
-  .icon-stack { flex-direction: row; flex-wrap: wrap; }
+  /* keep picker nice on small screens */
+  .picker-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
 }
