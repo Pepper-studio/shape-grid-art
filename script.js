@@ -16,7 +16,7 @@
 
 const GRID_SIZE = 5;
 const CELL_PX = 100;
-const ROUND_RATIO = 0.4;
+const ROUND_RATIO = 0.55;
 
 const COLORS = { blue: "#6396fc", yellow: "#ffdd35" };
 
