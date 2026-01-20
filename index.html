@@ -10,65 +10,109 @@
 <body>
   <div class="app">
 
-    <!-- Top: Mode -->
+    <!-- MODE (top, centered) -->
     <div class="mode-bar" role="group" aria-label="Mode">
-      <button id="modeStampBtn" class="pill-btn active" type="button">Stamp</button>
-      <button id="modeSelectBtn" class="pill-btn" type="button">Select</button>
+      <button id="modeStampBtn" class="pill-btn active" type="button">
+        Stamp
+      </button>
+      <button id="modeSelectBtn" class="pill-btn" type="button">
+        Select
+      </button>
     </div>
 
-    <!-- Main layout: left / grid / right -->
+    <!-- MAIN LAYOUT -->
     <div class="layout">
-      <!-- Left column: Shape + Colour -->
+
+      <!-- LEFT: Shape + Colour -->
       <aside class="panel left" aria-label="Shape and Colour">
         <div class="panel-block">
           <div class="panel-title">Shape</div>
           <div class="stack">
-            <button id="shapeSquareBtn" class="pill-btn active" type="button">Square</button>
-            <button id="shapeRoundedBtn" class="pill-btn" type="button">Rounded</button>
+            <button id="shapeSquareBtn" class="pill-btn active" type="button">
+              Square
+            </button>
+            <button id="shapeRoundedBtn" class="pill-btn" type="button">
+              Rounded
+            </button>
           </div>
         </div>
 
         <div class="panel-block">
           <div class="panel-title">Colour</div>
           <div class="stack">
-            <button id="colorBlueBtn" class="pill-btn active" type="button" data-color="#6396fc">Blue</button>
-            <button id="colorYellowBtn" class="pill-btn" type="button" data-color="#ffdd35">Yellow</button>
+            <button
+              id="colorBlueBtn"
+              class="pill-btn active"
+              type="button"
+              data-color="#6396fc"
+            >
+              Blue
+            </button>
+            <button
+              id="colorYellowBtn"
+              class="pill-btn"
+              type="button"
+              data-color="#ffdd35"
+            >
+              Yellow
+            </button>
           </div>
         </div>
       </aside>
 
-      <!-- Center: Grid -->
+      <!-- CENTER: GRID -->
       <main class="center" aria-label="Grid area">
         <div id="grid" class="grid" aria-label="5 by 5 grid"></div>
       </main>
 
-      <!-- Right column: Edit -->
+      <!-- RIGHT: EDIT -->
       <aside class="panel right" aria-label="Edit tools">
         <div class="panel-block">
           <div class="panel-title">Edit</div>
           <div class="stack">
-            <button id="selectAllBtn" class="pill-btn" type="button" disabled>Select all</button>
-            <button id="deselectBtn" class="pill-btn" type="button" disabled>Deselect</button>
+            <button id="selectAllBtn" class="pill-btn" type="button" disabled>
+              Select all
+            </button>
+            <button id="deselectBtn" class="pill-btn" type="button" disabled>
+              Deselect
+            </button>
 
             <div class="divider"></div>
 
-            <button id="rotateBtn" class="pill-btn" type="button" disabled>Rotate 90°</button>
-            <button id="mirrorXBtn" class="pill-btn" type="button" disabled>Mirror ↔</button>
-            <button id="mirrorYBtn" class="pill-btn" type="button" disabled>Mirror ↕</button>
-            <button id="deleteBtn" class="pill-btn danger" type="button" disabled>Delete</button>
+            <button id="rotateBtn" class="pill-btn" type="button" disabled>
+              Rotate 90°
+            </button>
+            <button id="mirrorXBtn" class="pill-btn" type="button" disabled>
+              Mirror ↔
+            </button>
+            <button id="mirrorYBtn" class="pill-btn" type="button" disabled>
+              Mirror ↕
+            </button>
+            <button id="deleteBtn" class="pill-btn danger" type="button" disabled>
+              Delete
+            </button>
           </div>
         </div>
       </aside>
+
     </div>
 
-    <!-- Bottom: Actions -->
+    <!-- BOTTOM ACTIONS -->
     <div class="bottom-bar" role="group" aria-label="Actions">
-      <button id="undoBtn" class="pill-btn" type="button">Undo</button>
-      <button id="clearBtn" class="pill-btn" type="button">Clear</button>
-      <button id="downloadBtn" class="download-btn" type="button">Download</button>
+      <button id="undoBtn" class="pill-btn" type="button">
+        Undo
+      </button>
+      <button id="clearBtn" class="pill-btn" type="button">
+        Clear
+      </button>
+      <button id="downloadBtn" class="download-btn" type="button">
+        Download
+      </button>
     </div>
 
+    <!-- STATUS -->
     <p id="statusText" class="status" aria-live="polite"></p>
+
   </div>
 
   <script src="script.js"></script>
