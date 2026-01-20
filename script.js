@@ -1,16 +1,17 @@
 // -----------------------------
-// Shape Grid Art (V1)
+// Shape Grid Art (V1.1)
 // 10x10 grid • 2 shapes • 2 colors
-// Click empty cell = place (and select)
-// Click filled cell = select
-// Edit via buttons: Rotate, Mirror ↔, Mirror ↕, Delete
-// Export: tight-cropped SVG
+// Placement: Layer toggle (OFF=Replace stack, ON=Add to stack)
+// Click empty = place • Click filled = select
+// Edit via buttons (acts on TOP layer): Rotate, Mirror ↔, Mirror ↕, Delete
+// Export: tight-cropped SVG including stacked layers
+// Rounded corner: 40% of cell size
 // -----------------------------
 
 // ----- Config -----
-const GRID_SIZE = 10;           // 10x10
-const CELL_PX = 64;             // export sizing (independent from CSS)
-const ROUND_RATIO = 0.4;        // 40% rounded corner based on cell size
+const GRID_SIZE = 10;
+const CELL_PX = 64;        // export sizing (independent from CSS)
+const ROUND_RATIO = 0.4;   // 40% corner radius based on cell size
 
 const COLORS = {
   blue: "#6396fc",
@@ -29,7 +30,10 @@ const shapeRoundedBtn = document.getElementById("shapeRoundedBtn");
 const colorBlueBtn = document.getElementById("colorBlueBtn");
 const colorYellowBtn = document.getElementById("colorYellowBtn");
 
-// Edit buttons (disabled until selection)
+// Placement toggle
+const layerToggle = document.getElementById("layerToggle"); // checkbox
+
+// Edit buttons
 const rotateBtn = document.getElementById("rotateBtn");
 const mirrorXBtn = document.getElementById("mirrorXBtn");
 const mirrorYBtn = document.getElementById("mirrorYBtn");
@@ -43,82 +47,38 @@ const downloadBtn = document.getElementById("downloadBtn");
 // ----- State -----
 let currentColor = COLORS.blue;
 let currentShapeType = "square"; // "square" | "rounded"
-let selectedCell = null;         // HTMLElement | null
+let selectedCell = null;
 
 const cells = [];
-const history = [];              // snapshots for undo (max 100)
+const history = []; // snapshots (max 100)
 
-// Each cell can have data or be empty:
-// { shapeType, color, rotation, mirrorX, mirrorY }
-function readCellData(cell) {
-  const shape = cell.querySelector(".shape");
-  if (!shape) return null;
+// ----- Layer model -----
+// Each cell stores a STACK of layers in DOM:
+// <div class="shape" data-...></div> repeated
+//
+// A layer looks like:
+// { shapeType, color, rotation, mirrorX, mirrorY, size }
+//
+// NOTE: size presets come later. For now, size=1 (all same),
+// but we keep the field because it unlocks stacking rules cleanly.
+const DEFAULT_SIZE = 1;
 
-  return {
-    shapeType: shape.dataset.shapeType || "square",
-    color: shape.dataset.color || COLORS.blue,
-    rotation: parseInt(shape.dataset.rotation || "0", 10) || 0,
-    mirrorX: shape.dataset.mirrorX === "true",
-    mirrorY: shape.dataset.mirrorY === "true",
-  };
+// Sorting rule (future-proof):
+// Larger size below, smaller above. Same size: keep existing order (older below).
+function sortLayersBySize(layers) {
+  // stable sort: group by size ascending so smaller ends up later (on top)
+  // We'll implement as: larger first (bottom) -> smaller last (top)
+  // but preserve order within same size.
+  return layers
+    .map((l, idx) => ({ l, idx }))
+    .sort((a, b) => {
+      if (a.l.size !== b.l.size) return b.l.size - a.l.size; // larger first
+      return a.idx - b.idx; // stable for same size
+    })
+    .map((x) => x.l);
 }
 
-function writeCellData(cell, data) {
-  // Clear
-  if (!data) {
-    const existing = cell.querySelector(".shape");
-    if (existing) existing.remove();
-    return;
-  }
-
-  let shape = cell.querySelector(".shape");
-  if (!shape) {
-    shape = document.createElement("div");
-    shape.classList.add("shape");
-    cell.appendChild(shape);
-  }
-
-  shape.dataset.shapeType = data.shapeType;
-  shape.dataset.color = data.color;
-  shape.dataset.rotation = String(data.rotation);
-  shape.dataset.mirrorX = String(!!data.mirrorX);
-  shape.dataset.mirrorY = String(!!data.mirrorY);
-
-  // Visuals
-  shape.style.backgroundColor = data.color;
-
-  // Base shape geometry:
-  // - square: no rounding
-  // - rounded: top-right corner rounded at 40%
-  if (data.shapeType === "rounded") {
-    const r = `${ROUND_RATIO * 100}%`;
-    shape.style.borderRadius = `0 ${r} 0 0`; // top-right only
-  } else {
-    shape.style.borderRadius = "0";
-  }
-
-  // Transform (keep consistent across app + export logic)
-  // We apply rotate + mirror about the center
-  const sx = data.mirrorX ? -1 : 1;
-  const sy = data.mirrorY ? -1 : 1;
-  shape.style.transform = `rotate(${data.rotation}deg) scaleX(${sx}) scaleY(${sy})`;
-}
-
-function pushState() {
-  const snapshot = cells.map((cell) => readCellData(cell));
-  history.push(snapshot);
-  if (history.length > 100) history.shift();
-}
-
-function restoreState(snapshot) {
-  cells.forEach((cell, i) => {
-    writeCellData(cell, snapshot[i]);
-  });
-  clearSelection();
-  updateStatus();
-}
-
-// ----- UI helpers -----
+// ----- Helpers: selection UI -----
 function setActiveButton(groupButtons, activeBtn) {
   groupButtons.forEach((b) => b.classList.remove("active"));
   activeBtn.classList.add("active");
@@ -135,6 +95,7 @@ function clearSelection() {
   if (selectedCell) selectedCell.classList.remove("selected");
   selectedCell = null;
   setEditEnabled(false);
+  updateStatus();
 }
 
 function selectCell(cell) {
@@ -154,24 +115,102 @@ function updateStatus() {
     return;
   }
 
-  const data = readCellData(selectedCell);
-  const row = selectedCell.dataset.row;
-  const col = selectedCell.dataset.col;
+  const layers = readCellLayers(selectedCell);
+  const row = parseInt(selectedCell.dataset.row, 10) + 1;
+  const col = parseInt(selectedCell.dataset.col, 10) + 1;
 
-  if (!data) {
-    statusText.textContent = `Selected cell (${parseInt(row, 10) + 1}, ${parseInt(col, 10) + 1}) is empty.`;
+  if (layers.length === 0) {
+    statusText.textContent = `Selected cell (${row}, ${col}) is empty.`;
     return;
   }
 
-  const shapeLabel = data.shapeType === "rounded" ? "Rounded corner" : "Square";
-  const mx = data.mirrorX ? "on" : "off";
-  const my = data.mirrorY ? "on" : "off";
+  const top = layers[layers.length - 1];
+  const shapeLabel = top.shapeType === "rounded" ? "Rounded corner" : "Square";
+  const mx = top.mirrorX ? "on" : "off";
+  const my = top.mirrorY ? "on" : "off";
 
   statusText.textContent =
-    `Selected: ${shapeLabel} • rotation ${data.rotation}° • mirror ↔ ${mx} • mirror ↕ ${my}`;
+    `Selected cell (${row}, ${col}) • layers ${layers.length} • top: ${shapeLabel} • rotation ${top.rotation}° • mirror ↔ ${mx} • mirror ↕ ${my}`;
 }
 
-// ----- Build grid (10x10) -----
+// ----- History (Undo) -----
+function pushState() {
+  const snapshot = cells.map((cell) => readCellLayers(cell));
+  history.push(snapshot);
+  if (history.length > 100) history.shift();
+}
+
+function restoreState(snapshot) {
+  cells.forEach((cell, i) => {
+    writeCellLayers(cell, snapshot[i]);
+  });
+  clearSelection();
+}
+
+// ----- Layer serialization (read/write) -----
+function readCellLayers(cell) {
+  const nodes = Array.from(cell.querySelectorAll(".shape"));
+  return nodes.map((shape) => ({
+    shapeType: shape.dataset.shapeType || "square",
+    color: shape.dataset.color || COLORS.blue,
+    rotation: parseInt(shape.dataset.rotation || "0", 10) || 0,
+    mirrorX: shape.dataset.mirrorX === "true",
+    mirrorY: shape.dataset.mirrorY === "true",
+    size: parseFloat(shape.dataset.size || String(DEFAULT_SIZE)) || DEFAULT_SIZE,
+  }));
+}
+
+function clearCellDom(cell) {
+  const nodes = cell.querySelectorAll(".shape");
+  nodes.forEach((n) => n.remove());
+}
+
+function applyLayerToDomNode(node, layer) {
+  node.dataset.shapeType = layer.shapeType;
+  node.dataset.color = layer.color;
+  node.dataset.rotation = String(layer.rotation);
+  node.dataset.mirrorX = String(!!layer.mirrorX);
+  node.dataset.mirrorY = String(!!layer.mirrorY);
+  node.dataset.size = String(layer.size);
+
+  node.style.backgroundColor = layer.color;
+
+  // Geometry (rounded corner top-right at 40%)
+  if (layer.shapeType === "rounded") {
+    const r = `${ROUND_RATIO * 100}%`;
+    node.style.borderRadius = `0 ${r} 0 0`;
+  } else {
+    node.style.borderRadius = "0";
+  }
+
+  // Transform: rotate + mirror around center
+  const sx = layer.mirrorX ? -1 : 1;
+  const sy = layer.mirrorY ? -1 : 1;
+  node.style.transform = `rotate(${layer.rotation}deg) scaleX(${sx}) scaleY(${sy})`;
+
+  // Size hook (future): keep it here so we can implement presets without refactor
+  // For now, size=1 so it does nothing visually.
+  node.style.transform += ` scale(${layer.size})`;
+}
+
+function writeCellLayers(cell, layers) {
+  clearCellDom(cell);
+
+  // Ensure consistent ordering before rendering:
+  // bottom -> top (last is top)
+  const sorted = sortLayersBySize(layers);
+
+  sorted.forEach((layer) => {
+    const node = document.createElement("div");
+    node.classList.add("shape");
+    // Important: allow selection outline to sit on top (outline is on cell)
+    // Shapes stack naturally by DOM order.
+    applyLayerToDomNode(node, layer);
+    cell.appendChild(node);
+  });
+}
+
+// ----- Build grid -----
 for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
   const cell = document.createElement("div");
   cell.classList.add("cell");
@@ -184,29 +223,50 @@ for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
   cells.push(cell);
 }
 
-// ----- Click behavior (Option A) -----
+// ----- Click behavior (Replace vs Layer) -----
 function handleCellClick(cell) {
-  const existing = readCellData(cell);
+  const layers = readCellLayers(cell);
+  const hasShapes = layers.length > 0;
 
-  // Empty cell: place new shape, then select it
-  if (!existing) {
+  // If empty: always place (and select)
+  if (!hasShapes) {
     pushState();
-
-    const data = {
-      shapeType: currentShapeType,
-      color: currentColor,
-      rotation: 0,
-      mirrorX: false,
-      mirrorY: false,
-    };
-
-    writeCellData(cell, data);
+    const newLayer = makeCurrentLayer();
+    writeCellLayers(cell, [newLayer]);
     selectCell(cell);
     return;
   }
 
-  // Filled cell: select only
+  // If filled: select always
   selectCell(cell);
+
+  // Also place/replace depending on Layer toggle
+  // - OFF (Replace): clear entire stack and place one layer
+  // - ON  (Layer): add a layer to the stack
+  pushState();
+
+  if (layerToggle && layerToggle.checked) {
+    // Layer mode: add
+    const next = layers.concat([makeCurrentLayer()]);
+    writeCellLayers(cell, next);
+  } else {
+    // Replace mode: replace entire stack with one
+    writeCellLayers(cell, [makeCurrentLayer()]);
+  }
+
+  // selection remains on the cell
+  updateStatus();
+}
+
+function makeCurrentLayer() {
+  return {
+    shapeType: currentShapeType,
+    color: currentColor,
+    rotation: 0,
+    mirrorX: false,
+    mirrorY: false,
+    size: DEFAULT_SIZE,
+  };
 }
 
 // ----- Shape selection -----
@@ -231,57 +291,70 @@ colorYellowBtn.addEventListener("click", () => {
   setActiveButton([colorBlueBtn, colorYellowBtn], colorYellowBtn);
 });
 
-// ----- Edit actions -----
+// ----- Edit actions (act on TOP layer only) -----
+function updateTopLayer(cell, mutateFn) {
+  const layers = readCellLayers(cell);
+  if (layers.length === 0) return;
+
+  const topIndex = layers.length - 1;
+  const top = { ...layers[topIndex] };
+  mutateFn(top);
+  layers[topIndex] = top;
+
+  writeCellLayers(cell, layers);
+}
+
 rotateBtn.addEventListener("click", () => {
   if (!selectedCell) return;
-  const data = readCellData(selectedCell);
-  if (!data) return;
-
   pushState();
-  data.rotation = (data.rotation + 90) % 360;
-  writeCellData(selectedCell, data);
+  updateTopLayer(selectedCell, (top) => {
+    top.rotation = (top.rotation + 90) % 360;
+  });
   updateStatus();
 });
 
 mirrorXBtn.addEventListener("click", () => {
   if (!selectedCell) return;
-  const data = readCellData(selectedCell);
-  if (!data) return;
-
   pushState();
-  data.mirrorX = !data.mirrorX;
-  writeCellData(selectedCell, data);
+  updateTopLayer(selectedCell, (top) => {
+    top.mirrorX = !top.mirrorX;
+  });
   updateStatus();
 });
 
 mirrorYBtn.addEventListener("click", () => {
   if (!selectedCell) return;
-  const data = readCellData(selectedCell);
-  if (!data) return;
-
   pushState();
-  data.mirrorY = !data.mirrorY;
-  writeCellData(selectedCell, data);
+  updateTopLayer(selectedCell, (top) => {
+    top.mirrorY = !top.mirrorY;
+  });
   updateStatus();
 });
 
 deleteBtn.addEventListener("click", () => {
   if (!selectedCell) return;
-  const data = readCellData(selectedCell);
-  if (!data) return;
+  const layers = readCellLayers(selectedCell);
+  if (layers.length === 0) return;
 
   pushState();
-  writeCellData(selectedCell, null);
-  clearSelection();
-  updateStatus();
+
+  // Delete removes TOP layer first (sensible for stacks)
+  layers.pop();
+  writeCellLayers(selectedCell, layers);
+
+  // If stack emptied, clear selection (no edit target)
+  if (layers.length === 0) {
+    clearSelection();
+  } else {
+    updateStatus();
+  }
 });
 
 // ----- Utility actions -----
 clearBtn.addEventListener("click", () => {
   pushState();
-  cells.forEach((cell) => writeCellData(cell, null));
+  cells.forEach((cell) => writeCellLayers(cell, []));
   clearSelection();
-  updateStatus();
 });
 
 undoBtn.addEventListener("click", () => {
@@ -290,7 +363,7 @@ undoBtn.addEventListener("click", () => {
   restoreState(last);
 });
 
-// ----- Export (tight-cropped SVG) -----
+// ----- Export (tight-cropped SVG incl. stacks) -----
 downloadBtn.addEventListener("click", () => {
   const { minRow, maxRow, minCol, maxCol } = findUsedBounds();
 
@@ -307,59 +380,67 @@ downloadBtn.addEventListener("click", () => {
   const shapesSvg = [];
 
   cells.forEach((cell) => {
-    const data = readCellData(cell);
-    if (!data) return;
-
     const row = parseInt(cell.dataset.row, 10);
     const col = parseInt(cell.dataset.col, 10);
+
+    const layers = readCellLayers(cell);
+    if (layers.length === 0) return;
 
     const x = (col - minCol) * CELL_PX;
     const y = (row - minRow) * CELL_PX;
 
-    const w = CELL_PX;
-    const h = CELL_PX;
+    // Ensure same ordering as on-screen (bottom -> top)
+    const sorted = sortLayersBySize(layers);
 
-    // Paths
-    let shapeMarkup = "";
-    if (data.shapeType === "square") {
-      shapeMarkup = `<rect x="0" y="0" width="${w}" height="${h}" fill="${data.color}" />`;
-    } else {
-      // Rounded top-right corner (40% of cell size)
-      const r = CELL_PX * ROUND_RATIO;
-      const d = [
-        `M 0 0`,
-        `H ${w - r}`,
-        `Q ${w} 0 ${w} ${r}`,
-        `V ${h}`,
-        `H 0`,
-        `Z`,
-      ].join(" ");
-      shapeMarkup = `<path d="${d}" fill="${data.color}" />`;
-    }
+    sorted.forEach((layer) => {
+      const w = CELL_PX;
+      const h = CELL_PX;
 
-    // Apply rotate + mirror around center
-    const cx = w / 2;
-    const cy = h / 2;
-    const sx = data.mirrorX ? -1 : 1;
-    const sy = data.mirrorY ? -1 : 1;
-    const a = data.rotation;
+      // Shape markup in local coords (0..w/h)
+      let shapeMarkup = "";
 
-    // Use nested transforms for reliability
-    const group = `
-      <g transform="translate(${x} ${y})">
-        <g transform="translate(${cx} ${cy})">
-          <g transform="rotate(${a})">
-            <g transform="scale(${sx} ${sy})">
-              <g transform="translate(${-cx} ${-cy})">
-                ${shapeMarkup}
-              </g>
+      if (layer.shapeType === "square") {
+        shapeMarkup = `<rect x="0" y="0" width="${w}" height="${h}" fill="${layer.color}" />`;
+      } else {
+        const r = CELL_PX * ROUND_RATIO; // 40%
+        const d = [
+          `M 0 0`,
+          `H ${w - r}`,
+          `Q ${w} 0 ${w} ${r}`,
+          `V ${h}`,
+          `H 0`,
+          `Z`,
+        ].join(" ");
+        shapeMarkup = `<path d="${d}" fill="${layer.color}" />`;
+      }
+
+      // Apply rotate + mirror about center (plus size scaling)
+      const cx = w / 2;
+      const cy = h / 2;
+      const sx = layer.mirrorX ? -1 : 1;
+      const sy = layer.mirrorY ? -1 : 1;
+      const a = layer.rotation;
+      const s = layer.size || DEFAULT_SIZE;
+
+      // Nested transforms for reliable Illustrator import
+      const group = `
+  <g transform="translate(${x} ${y})">
+    <g transform="translate(${cx} ${cy})">
+      <g transform="rotate(${a})">
+        <g transform="scale(${sx} ${sy})">
+          <g transform="scale(${s})">
+            <g transform="translate(${-cx} ${-cy})">
+              ${shapeMarkup}
             </g>
           </g>
         </g>
       </g>
-    `.trim();
+    </g>
+  </g>
+      `.trim();
 
-    shapesSvg.push(group);
+      shapesSvg.push(group);
+    });
   });
 
   const svgContent = `
@@ -383,6 +464,7 @@ ${shapesSvg.join("\n")}
   URL.revokeObjectURL(url);
 });
 
+// ----- Bounds helper -----
 function findUsedBounds() {
   let minRow = Infinity;
   let maxRow = -Infinity;
@@ -403,6 +485,6 @@ function findUsedBounds() {
   return { minRow, maxRow, minCol, maxCol };
 }
 
-// Initial UI state
+// ----- Initial UI state -----
 setEditEnabled(false);
 updateStatus();
