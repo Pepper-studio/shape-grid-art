@@ -19,57 +19,50 @@
     <!-- MAIN LAYOUT -->
     <div class="layout">
 
-      <!-- LEFT: Shape + Colour -->
+      <!-- LEFT: Shape + Colour (new layout) -->
       <aside class="panel left" aria-label="Shape and Colour">
-
-        <!-- SHAPE -->
-        <div class="panel-block panel-spacing">
-          <div class="panel-title">Shape</div>
-          <div class="icon-stack">
-            <button
-              id="shapeSquareBtn"
-              class="icon-btn active"
-              type="button"
-              aria-label="Square shape"
-            >
-              <span class="icon-shape square"></span>
-            </button>
-
-            <button
-              id="shapeRoundedBtn"
-              class="icon-btn"
-              type="button"
-              aria-label="Rounded corner shape"
-            >
-              <span class="icon-shape rounded"></span>
-            </button>
-          </div>
-        </div>
-
-        <!-- COLOUR -->
         <div class="panel-block">
-          <div class="panel-title">Colour</div>
-          <div class="icon-stack">
-            <button
-              id="colorBlueBtn"
-              class="color-btn active"
-              type="button"
-              aria-label="Blue colour"
-            >
-              <span class="color-swatch blue"></span>
-            </button>
 
-            <button
-              id="colorYellowBtn"
-              class="color-btn"
-              type="button"
-              aria-label="Yellow colour"
-            >
-              <span class="color-swatch yellow"></span>
-            </button>
+          <!-- 2-column picker -->
+          <div class="picker-grid" aria-label="Shape and colour picker">
+            <!-- Shapes column -->
+            <div class="picker-col">
+              <div class="picker-title">Shapes</div>
+
+              <div class="tile-stack">
+                <button id="shapeSquareBtn" class="tile-btn active" type="button" aria-label="Square shape">
+                  <span class="tile-icon shape-square" aria-hidden="true"></span>
+                </button>
+
+                <button id="shapeRoundedBtn" class="tile-btn" type="button" aria-label="Rounded corner shape">
+                  <span class="tile-icon shape-rounded" aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Colour column -->
+            <div class="picker-col">
+              <div class="picker-title">Colour</div>
+
+              <div class="tile-stack">
+                <button id="colorBlueBtn" class="tile-btn active" type="button" aria-label="Blue colour">
+                  <span class="tile-icon swatch-blue" aria-hidden="true"></span>
+                </button>
+
+                <button id="colorYellowBtn" class="tile-btn" type="button" aria-label="Yellow colour">
+                  <span class="tile-icon swatch-yellow" aria-hidden="true"></span>
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
 
+          <!-- Bottom actions under picker -->
+          <div class="picker-actions" role="group" aria-label="Picker actions">
+            <button id="randomizeBtn" class="pill-btn" type="button">Randomize</button>
+            <button id="backBtn" class="pill-btn" type="button">Back</button>
+          </div>
+
+        </div>
       </aside>
 
       <!-- CENTER: GRID -->
@@ -82,27 +75,15 @@
         <div class="panel-block">
           <div class="panel-title">Edit</div>
           <div class="stack">
-            <button id="selectAllBtn" class="pill-btn" type="button" disabled>
-              Select all
-            </button>
-            <button id="deselectBtn" class="pill-btn" type="button" disabled>
-              Deselect
-            </button>
+            <button id="selectAllBtn" class="pill-btn" type="button" disabled>Select all</button>
+            <button id="deselectBtn" class="pill-btn" type="button" disabled>Deselect</button>
 
             <div class="divider"></div>
 
-            <button id="rotateBtn" class="pill-btn" type="button" disabled>
-              Rotate 90°
-            </button>
-            <button id="mirrorXBtn" class="pill-btn" type="button" disabled>
-              Mirror ↔
-            </button>
-            <button id="mirrorYBtn" class="pill-btn" type="button" disabled>
-              Mirror ↕
-            </button>
-            <button id="deleteBtn" class="pill-btn danger" type="button" disabled>
-              Delete
-            </button>
+            <button id="rotateBtn" class="pill-btn" type="button" disabled>Rotate 90°</button>
+            <button id="mirrorXBtn" class="pill-btn" type="button" disabled>Mirror ↔</button>
+            <button id="mirrorYBtn" class="pill-btn" type="button" disabled>Mirror ↕</button>
+            <button id="deleteBtn" class="pill-btn danger" type="button" disabled>Delete</button>
           </div>
         </div>
       </aside>
