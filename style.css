@@ -62,7 +62,7 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
 }
 .download-btn:hover:not(:disabled) { background: #000; }
 
-/* ---------- Mode bar (top centered) ---------- */
+/* ---------- Mode bar ---------- */
 
 .mode-bar {
   display: flex;
@@ -71,7 +71,7 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
   width: 100%;
 }
 
-/* ---------- Main layout (left / grid / right) ---------- */
+/* ---------- Layout ---------- */
 
 .layout {
   display: grid;
@@ -81,7 +81,6 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
   justify-content: center;
 }
 
-/* Panels */
 .panel { display: flex; flex-direction: column; }
 
 .panel-block {
@@ -99,32 +98,13 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
   margin-bottom: 10px;
 }
 
-/* Vertical stacks (right-side edit buttons) */
-.stack {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  align-items: flex-start;
-}
-
-.divider {
-  height: 1px;
-  background: #ededed;
-  margin: 6px 0;
-  width: 100%;
-}
-
-/* Center column */
-.center { display: flex; justify-content: center; }
-
-/* ---------- NEW: Shape + Colour panel (match reference) ---------- */
+/* ---------- Picker (Shape + Colour) ---------- */
 
 .picker-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 22px;
   justify-items: center;
-  align-items: start;
   margin-top: 6px;
 }
 
@@ -139,7 +119,6 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
   font-size: 13px;
   font-weight: 600;
   color: #111;
-  margin: 0;
 }
 
 .tile-stack {
@@ -148,7 +127,6 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
   gap: 14px;
 }
 
-/* Big square buttons */
 .tile-btn {
   width: 110px;
   height: 110px;
@@ -158,52 +136,53 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
   background: #fff;
   display: grid;
   place-items: center;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.08s ease;
 }
 
-.tile-btn:hover:not(:disabled) {
-  background: #fff;
-  border-color: #cfcfcf;
-}
-
-.tile-btn:active:not(:disabled) { transform: translateY(1px); }
-
-/* Active state (subtle outline like your reference) */
 .tile-btn.active {
   border-color: #bdbdbd;
   box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
 }
 
-/* Inner icons */
+/* Icons */
+
 .tile-icon {
   width: 62px;
   height: 62px;
-  display: block;
   background: #d9d9d9;
 }
 
-/* Shape icons */
-.shape-square {
-  border-radius: 0;
+.shape-square { border-radius: 0; }
+.shape-rounded { border-radius: 0 40% 0 0; }
+
+.swatch-blue { background: #6396fc; }
+.swatch-yellow { background: #ffdd35; }
+
+/* ---------- NEW: Output grid selector ---------- */
+
+.output-block {
+  margin-top: 26px;
+  text-align: center;
 }
 
-.shape-rounded {
-  /* rounded TOP-RIGHT only (40% of icon size) */
-  border-radius: 0 40% 0 0;
+.output-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
 }
 
-/* Colour swatches */
-.swatch-blue {
-  background: #6396fc;
-  border-radius: 0;
+.output-row {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
 }
 
-.swatch-yellow {
-  background: #ffdd35;
-  border-radius: 0;
+.output-row .pill-btn {
+  min-width: 54px;
+  padding: 7px 10px;
 }
 
-/* Bottom row under picker: Randomize / Back */
+/* ---------- Picker actions ---------- */
+
 .picker-actions {
   margin-top: 22px;
   display: grid;
@@ -216,7 +195,9 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
   width: 120px;
 }
 
-/* ---------- Grid (5x5 @ 100px) ---------- */
+/* ---------- Grid ---------- */
+
+.center { display: flex; justify-content: center; }
 
 .grid {
   display: grid;
@@ -224,8 +205,6 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
   width: 500px;
   height: 500px;
   border: 1px solid #ddd;
-
-  /* subtle swiss grid lines */
   background:
     linear-gradient(#eee 1px, transparent 1px),
     linear-gradient(90deg, #eee 1px, transparent 1px);
@@ -237,35 +216,18 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
   cursor: pointer;
 }
 
-.cell:hover::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.03);
-  pointer-events: none;
-  z-index: 2;
-}
-
-/* Shape */
 .shape {
   position: absolute;
   inset: 0;
-  transform-origin: center;
-  z-index: 1;
 }
 
-/* drag cues */
-.shape.draggable { cursor: grab; }
-.shape.dragging { cursor: grabbing; opacity: 0.85; }
+/* Selection visuals */
 
-/* Selection overlays (always on top) */
 .cell.selected::after {
   content: "";
   position: absolute;
   inset: 0;
   border: 2px solid #111;
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.55);
-  pointer-events: none;
   z-index: 10;
 }
 
@@ -274,8 +236,6 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
   position: absolute;
   inset: 0;
   border: 2px solid rgba(17,17,17,0.55);
-  box-shadow: inset 0 0 0 1px rgba(255,255,255,0.40);
-  pointer-events: none;
   z-index: 9;
 }
 
@@ -285,11 +245,25 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
   inset: 0;
   border: 2px solid #111;
   background: rgba(0,0,0,0.06);
-  pointer-events: none;
   z-index: 11;
 }
 
-/* ---------- Bottom bar (centered) ---------- */
+/* ---------- Right-side edit ---------- */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.divider {
+  height: 1px;
+  background: #ededed;
+  margin: 6px 0;
+  width: 100%;
+}
+
+/* ---------- Bottom bar ---------- */
 
 .bottom-bar {
   display: flex;
@@ -323,11 +297,5 @@ button:disabled { opacity: 0.35; cursor: not-allowed; }
     width: min(540px, 100%);
     height: auto;
     aspect-ratio: 1 / 1;
-  }
-
-  /* keep picker nice on small screens */
-  .picker-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 18px;
   }
 }
