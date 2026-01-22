@@ -1,9 +1,9 @@
 // -----------------------------
-// Shape Builder (V8)
-// 5x5 grid • 100x100 cells
-// UI:
-//  - Left picker (Shapes/Colour) uses tile buttons
-//  - Randomize + Back buttons under picker
+// Shape Builder (V9)
+// Board: fixed 5x5 grid • 100x100 cells
+// NEW: Output size selector (2x2, 3x3, 4x4, 5x5)
+//  - Randomize fills ONLY the selected output matrix
+//  - The matrix is centered within the 5x5 board
 // Modes:
 //  - Stamp: click any cell to place/replace
 //  - Select: click filled cell to select; drag to move (snap)
@@ -11,13 +11,12 @@
 //  - Select all (Select mode only): selects all filled cells
 //  - Dragging any selected shape moves the whole group together
 //  - If any part would go out of bounds, drop is blocked (no partial moves)
-// Deselect:
-//  - Clears single + multi selection (Select mode only)
+// Deselect clears selection
 // Rounded corner: ROUND_RATIO of cell size
-// Export: tight-cropped SVG
+// Export: tight-cropped SVG of used bounds
 // -----------------------------
 
-const GRID_SIZE = 5;
+const GRID_SIZE = 5;        // Board is always 5x5
 const CELL_PX = 100;
 
 // Adjust rounding here (e.g. 0.40 = 40% of cell size)
@@ -41,7 +40,13 @@ const shapeRoundedBtn = document.getElementById("shapeRoundedBtn");
 const colorBlueBtn = document.getElementById("colorBlueBtn");
 const colorYellowBtn = document.getElementById("colorYellowBtn");
 
-// Picker actions (new UI)
+// Output size (NEW)
+const grid2Btn = document.getElementById("grid2Btn");
+const grid3Btn = document.getElementById("grid3Btn");
+const grid4Btn = document.getElementById("grid4Btn");
+const grid5Btn = document.getElementById("grid5Btn");
+
+// Picker actions
 const randomizeBtn = document.getElementById("randomizeBtn");
 const backBtn = document.getElementById("backBtn");
 
@@ -63,7 +68,10 @@ let currentMode = "stamp";
 let currentColor = COLORS.blue;
 let currentShapeType = "square";
 
-let selectedCell = null;           // primary selection (also anchor when group-selected)
+// Output size state (NEW) - default 5x5
+let currentOutputSize = 5;
+
+let selectedCell = null;           // primary selection (anchor when group-selected)
 const multiSelected = new Set();   // Set<HTMLElement> (group selection)
 const cells = [];
 const history = [];
@@ -73,10 +81,10 @@ let isDragging = false;
 let dragFromCell = null;
 let currentDropCell = null;
 
-// ---------- Helpers ----------
+// ---------- UI helpers ----------
 function setActiveButton(groupButtons, activeBtn) {
-  groupButtons.forEach((b) => b.classList.remove("active"));
-  activeBtn.classList.add("active");
+  groupButtons.forEach((b) => b && b.classList.remove("active"));
+  activeBtn && activeBtn.classList.add("active");
 }
 
 function countFilledCells() {
@@ -198,7 +206,7 @@ function updateStatus() {
   if (!statusText) return;
 
   if (currentMode === "stamp") {
-    statusText.textContent = "Mode: Stamp — click any cell to place/replace.";
+    statusText.textContent = `Mode: Stamp — click any cell to place/replace. Output grid: ${currentOutputSize}×${currentOutputSize}.`;
     return;
   }
 
@@ -326,7 +334,7 @@ function writeCellData(cell, data) {
   applyShapeStyles(shape, data);
 }
 
-// ---------- Build grid ----------
+// ---------- Build board grid (5x5) ----------
 for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
   const cell = document.createElement("div");
   cell.classList.add("cell");
@@ -386,6 +394,21 @@ colorYellowBtn.addEventListener("click", () => {
   setActiveButton([colorBlueBtn, colorYellowBtn], colorYellowBtn);
 });
 
+// ---------- Output size selection (NEW) ----------
+function setOutputSize(n) {
+  currentOutputSize = n;
+
+  // Highlight active
+  setActiveButton([grid2Btn, grid3Btn, grid4Btn, grid5Btn], n === 2 ? grid2Btn : n === 3 ? grid3Btn : n === 4 ? grid4Btn : grid5Btn);
+
+  updateStatus();
+}
+
+if (grid2Btn) grid2Btn.addEventListener("click", () => setOutputSize(2));
+if (grid3Btn) grid3Btn.addEventListener("click", () => setOutputSize(3));
+if (grid4Btn) grid4Btn.addEventListener("click", () => setOutputSize(4));
+if (grid5Btn) grid5Btn.addEventListener("click", () => setOutputSize(5));
+
 // ---------- Picker actions ----------
 function randomInt(max) {
   return Math.floor(Math.random() * max);
@@ -403,33 +426,55 @@ function randomColor() {
   return Math.random() < 0.5 ? COLORS.blue : COLORS.yellow;
 }
 
-// Randomize: fills the grid with a playful, moderate density pattern
+function getCenteredWindow(size) {
+  // returns { startRow, startCol, endRowExclusive, endColExclusive }
+  const startRow = Math.floor((GRID_SIZE - size) / 2);
+  const startCol = Math.floor((GRID_SIZE - size) / 2);
+  return {
+    startRow,
+    startCol,
+    endRow: startRow + size,
+    endCol: startCol + size,
+  };
+}
+
+// Randomize fills ONLY the centered output size window
 if (randomizeBtn) {
   randomizeBtn.addEventListener("click", () => {
     pushState();
     clearSelection();
 
-    const FILL_PROB = 0.55; // moderate density
-    cells.forEach((cell) => {
-      if (Math.random() < FILL_PROB) {
-        writeCellData(cell, {
-          shapeType: randomShapeType(),
-          color: randomColor(),
-          rotation: randomRotation(),
-          mirrorX: false,
-          mirrorY: false,
-        });
-      } else {
-        writeCellData(cell, null);
+    // Clear entire board first (simple + predictable)
+    cells.forEach((cell) => writeCellData(cell, null));
+
+    const { startRow, startCol, endRow, endCol } = getCenteredWindow(currentOutputSize);
+
+    // Density scales slightly with size (smaller grids feel more "stamped")
+    const densityBySize = { 2: 0.9, 3: 0.75, 4: 0.65, 5: 0.55 };
+    const FILL_PROB = densityBySize[currentOutputSize] ?? 0.6;
+
+    for (let r = startRow; r < endRow; r++) {
+      for (let c = startCol; c < endCol; c++) {
+        const idx = r * GRID_SIZE + c;
+
+        if (Math.random() < FILL_PROB) {
+          writeCellData(cells[idx], {
+            shapeType: randomShapeType(),
+            color: randomColor(),
+            rotation: randomRotation(),
+            mirrorX: false,
+            mirrorY: false,
+          });
+        }
       }
-    });
+    }
 
     setEditEnabled();
     updateStatus();
   });
 }
 
-// Back: returns to Stamp mode (simple + intuitive for clients)
+// Back: returns to Stamp mode
 if (backBtn) {
   backBtn.addEventListener("click", () => {
     setMode("stamp");
@@ -580,7 +625,7 @@ grid.addEventListener("pointerup", (e) => {
 
   const toCell = cellFromPointer(e.clientX, e.clientY);
 
-  // Cleanup drag visuals
+  // Cleanup
   const fromShape = dragFromCell?.querySelector(".shape");
   if (fromShape) fromShape.classList.remove("dragging");
   clearDropTarget();
@@ -600,7 +645,7 @@ grid.addEventListener("pointerup", (e) => {
     return;
   }
 
-  // Anchor delta (grid units)
+  // Anchor delta
   const fromRow = parseInt(dragFromCell.dataset.row, 10);
   const fromCol = parseInt(dragFromCell.dataset.col, 10);
   const toRow = parseInt(toCell.dataset.row, 10);
@@ -614,7 +659,7 @@ grid.addEventListener("pointerup", (e) => {
     return;
   }
 
-  // Build plan + bounds check
+  // Plan + bounds check
   const plan = [];
   for (const cell of moveCells) {
     const data = readCellData(cell);
@@ -638,7 +683,6 @@ grid.addEventListener("pointerup", (e) => {
     return;
   }
 
-  // Execute atomically using a buffer (safe for overlapping moves)
   pushState();
 
   const srcKeys = new Set();
@@ -661,7 +705,7 @@ grid.addEventListener("pointerup", (e) => {
     writeCellData(cells[r * GRID_SIZE + c], data);
   });
 
-  // Rebuild selection on new locations
+  // Rebuild selection
   const movedCells = [];
   destMap.forEach((_data, key) => {
     const [r, c] = key.split(",").map(Number);
@@ -803,5 +847,6 @@ function findUsedBounds() {
 
 // ---------- Init ----------
 setMode("stamp");
+setOutputSize(5); // default (also sets active UI)
 setEditEnabled();
 updateStatus();
