@@ -90,9 +90,9 @@ button:focus-visible{
 }
 
 .pill-btn.is-active{
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
+  background: #fff;
+  color: #111;
+  border-color: #111;
 }
 
 .pill-btn.danger{
@@ -195,8 +195,8 @@ button:focus-visible{
 }
 
 .tile-btn.is-active{
-  border-color: #bdbdbd;
-  box-shadow: 0 0 0 3px rgba(0,0,0,0.04);
+  border-color: #000000;
+  box-shadow: none;
 }
 
 /* Icons */
@@ -238,11 +238,11 @@ button:focus-visible{
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--s3);
-  justify-items: center;
+  width: 100%;
 }
 
 .picker-actions .pill-btn{
-  width: 120px;
+  width: 100%;
 }
 
 /* ---------- Center grid ---------- */
