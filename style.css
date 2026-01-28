@@ -244,11 +244,13 @@ button:focus-visible{
   grid-template-columns: repeat(5, 1fr);
   width: var(--grid-w);
   height: var(--grid-w);
-  border: 1px solid var(--border-strong);
   background: var(--bg);
   position: relative;
 
-  /* Dotted grid-paper look */
+  /* dotted frame */
+  border: 1px dotted var(--border-strong);
+
+  /* dotted grid-paper look */
   background-image: radial-gradient(circle, var(--grid-dot) var(--grid-dot-size), transparent var(--grid-dot-size));
   background-size: calc(100% / var(--grid-size)) calc(100% / var(--grid-size));
   background-position: center;
