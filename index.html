@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -11,90 +11,94 @@
   <div class="app">
 
     <!-- MODE -->
-    <div class="mode-bar" role="group" aria-label="Mode">
-      <button id="modeStampBtn" class="pill-btn active" type="button">Stamp</button>
-      <button id="modeSelectBtn" class="pill-btn" type="button">Select</button>
-    </div>
+    <header class="mode-bar" role="group" aria-label="Mode">
+      <button class="pill-btn is-active" type="button" data-mode="stamp">Stamp</button>
+      <button class="pill-btn" type="button" data-mode="select">Select</button>
+    </header>
 
     <!-- MAIN LAYOUT -->
     <div class="layout">
 
       <!-- LEFT: Shape + Colour -->
-      <aside class="panel left" aria-label="Shape and Colour">
-        <div class="panel-block">
+      <aside class="panel" aria-label="Shape and Colour">
+        <div class="panel__inner">
 
-          <!-- 2-column picker -->
-          <div class="picker-grid" aria-label="Shape and colour picker">
-            <!-- Shapes column -->
-            <div class="picker-col">
-              <div class="picker-title">Shapes</div>
+          <section class="panel__section" aria-label="Shape and colour picker">
+            <div class="picker-grid">
 
-              <div class="tile-stack">
-                <button id="shapeSquareBtn" class="tile-btn active" type="button" aria-label="Square shape">
-                  <span class="tile-icon shape-square" aria-hidden="true"></span>
-                </button>
+              <!-- Shapes -->
+              <div class="picker-col">
+                <div class="picker-title">Shapes</div>
 
-                <button id="shapeRoundedBtn" class="tile-btn" type="button" aria-label="Rounded corner shape">
-                  <span class="tile-icon shape-rounded" aria-hidden="true"></span>
-                </button>
+                <div class="tile-stack" role="group" aria-label="Shape">
+                  <button class="tile-btn is-active" type="button" data-shape="square" aria-label="Square shape">
+                    <span class="tile-icon shape-square" aria-hidden="true"></span>
+                  </button>
+
+                  <button class="tile-btn" type="button" data-shape="rounded" aria-label="Rounded corner shape">
+                    <span class="tile-icon shape-rounded" aria-hidden="true"></span>
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <!-- Colour column -->
-            <div class="picker-col">
-              <div class="picker-title">Colour</div>
+              <!-- Colour -->
+              <div class="picker-col">
+                <div class="picker-title">Colour</div>
 
-              <div class="tile-stack">
-                <button id="colorBlueBtn" class="tile-btn active" type="button" aria-label="Blue colour">
-                  <span class="tile-icon swatch-blue" aria-hidden="true"></span>
-                </button>
+                <div class="tile-stack" role="group" aria-label="Colour">
+                  <button class="tile-btn is-active" type="button" data-color="blue" aria-label="Blue colour">
+                    <span class="tile-icon swatch-blue" aria-hidden="true"></span>
+                  </button>
 
-                <button id="colorYellowBtn" class="tile-btn" type="button" aria-label="Yellow colour">
-                  <span class="tile-icon swatch-yellow" aria-hidden="true"></span>
-                </button>
+                  <button class="tile-btn" type="button" data-color="yellow" aria-label="Yellow colour">
+                    <span class="tile-icon swatch-yellow" aria-hidden="true"></span>
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
 
-          <!-- NEW: Output grid size -->
-          <div class="output-block" aria-label="Output size">
+            </div>
+          </section>
+
+          <!-- Output grid size -->
+          <section class="panel__section output-block" aria-label="Output size">
             <div class="output-title">Grid</div>
             <div class="output-row" role="group" aria-label="Output size buttons">
-              <button id="grid2Btn" class="pill-btn" type="button">2×2</button>
-              <button id="grid3Btn" class="pill-btn" type="button">3×3</button>
-              <button id="grid4Btn" class="pill-btn" type="button">4×4</button>
-              <button id="grid5Btn" class="pill-btn active" type="button">5×5</button>
+              <button class="pill-btn" type="button" data-output="2">2×2</button>
+              <button class="pill-btn" type="button" data-output="3">3×3</button>
+              <button class="pill-btn" type="button" data-output="4">4×4</button>
+              <button class="pill-btn is-active" type="button" data-output="5">5×5</button>
             </div>
-          </div>
+          </section>
 
-          <!-- Bottom actions under picker -->
-          <div class="picker-actions" role="group" aria-label="Picker actions">
-            <button id="randomizeBtn" class="pill-btn" type="button">Randomize</button>
-            <button id="backBtn" class="pill-btn" type="button">Back</button>
-          </div>
+          <!-- Picker actions -->
+          <section class="panel__section picker-actions" role="group" aria-label="Picker actions">
+            <button class="pill-btn" type="button" data-action="randomize">Randomize</button>
+            <button class="pill-btn" type="button" data-action="back">Back</button>
+          </section>
 
         </div>
       </aside>
 
       <!-- CENTER: GRID -->
       <main class="center" aria-label="Grid area">
-        <div id="grid" class="grid" aria-label="5 by 5 grid"></div>
+        <div id="grid" class="grid" aria-label="Grid"></div>
       </main>
 
       <!-- RIGHT: EDIT -->
-      <aside class="panel right" aria-label="Edit tools">
-        <div class="panel-block">
+      <aside class="panel" aria-label="Edit tools">
+        <div class="panel__inner">
           <div class="panel-title">Edit</div>
+
           <div class="stack">
-            <button id="selectAllBtn" class="pill-btn" type="button" disabled>Select all</button>
-            <button id="deselectBtn" class="pill-btn" type="button" disabled>Deselect</button>
+            <button class="pill-btn" type="button" data-edit="selectAll" disabled>Select all</button>
+            <button class="pill-btn" type="button" data-edit="deselect" disabled>Deselect</button>
 
-            <div class="divider"></div>
+            <div class="divider" aria-hidden="true"></div>
 
-            <button id="rotateBtn" class="pill-btn" type="button" disabled>Rotate 90°</button>
-            <button id="mirrorXBtn" class="pill-btn" type="button" disabled>Mirror ↔</button>
-            <button id="mirrorYBtn" class="pill-btn" type="button" disabled>Mirror ↕</button>
-            <button id="deleteBtn" class="pill-btn danger" type="button" disabled>Delete</button>
+            <button class="pill-btn" type="button" data-edit="rotate" disabled>Rotate 90°</button>
+            <button class="pill-btn" type="button" data-edit="mirrorX" disabled>Mirror ↔</button>
+            <button class="pill-btn" type="button" data-edit="mirrorY" disabled>Mirror ↕</button>
+            <button class="pill-btn danger" type="button" data-edit="delete" disabled>Delete</button>
           </div>
         </div>
       </aside>
@@ -102,14 +106,13 @@
     </div>
 
     <!-- BOTTOM ACTIONS -->
-    <div class="bottom-bar" role="group" aria-label="Actions">
-      <button id="undoBtn" class="pill-btn" type="button">Undo</button>
-      <button id="clearBtn" class="pill-btn" type="button">Clear</button>
-      <button id="downloadBtn" class="download-btn" type="button">Download</button>
-    </div>
+    <footer class="bottom-bar" role="group" aria-label="Actions">
+      <button class="pill-btn" type="button" data-action="undo">Undo</button>
+      <button class="pill-btn" type="button" data-action="clear">Clear</button>
+      <button class="download-btn" type="button" data-action="download">Download</button>
+    </footer>
 
-    <!-- STATUS -->
-    <p id="statusText" class="status" aria-live="polite"></p>
+    <!-- Status text removed per request -->
 
   </div>
 
