@@ -248,7 +248,7 @@ button:focus-visible{
   position: relative;
 
   /* dotted frame */
-  border: 1px dotted var(--border-strong);
+  border: 0px dotted var(--border-strong);
 
   /* dotted grid-paper look */
   background-image: radial-gradient(circle, var(--grid-dot) var(--grid-dot-size), transparent var(--grid-dot-size));
