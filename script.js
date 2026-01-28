@@ -1,36 +1,33 @@
-// Shape Builder (clean version)
+// Shape Builder (updated)
 // - 5x5 board, fixed
 // - Output size (2–5) controls a centered window used by Randomize
 // - Randomize fills ALL cells in the chosen output window (no empties)
 // - Select mode supports single + multi-select
 // - Select all enables rotate/mirror/delete for the whole selection
-// - Drag moves single selection or group selection; out-of-bounds blocks move
+// - Rotate/mirror apply as GROUP transforms (positions + orientations)
+// - Rounded corner increased by +5px (now 60px on a 100px cell)
+// - Drag moves selection; out-of-bounds blocks move
 // - Export tight-cropped SVG of used bounds
 
 (() => {
   // ---------- Constants ----------
   const GRID_SIZE = 5;
   const CELL_PX = 100;
-  const ROUND_RATIO = 0.55;
+
+  // Was ~55px (0.55 * 100). Increased by +5px per request.
+  const ROUND_PX = 60;
+
   const COLORS = { blue: "#6396fc", yellow: "#ffdd35" };
 
   // ---------- DOM ----------
   const gridEl = document.getElementById("grid");
   if (!gridEl) return;
 
-  // Mode buttons
   const modeBar = document.querySelector(".mode-bar");
-
-  // Left panel groups
   const shapeGroup = document.querySelector('[aria-label="Shape"]');
   const colorGroup = document.querySelector('[aria-label="Colour"]');
   const outputRow = document.querySelector(".output-row");
-
-  // Right panel (edit)
   const editPanel = document.querySelector('[aria-label="Edit tools"]');
-
-  // Bottom actions
-  const bottomBar = document.querySelector(".bottom-bar");
 
   // ---------- State ----------
   const state = {
@@ -39,16 +36,14 @@
     color: COLORS.blue,
     outputSize: 5, // 2..5
     selected: new Set(), // Set<cellEl>
-    anchor: null, // cellEl (used for drag delta reference)
-    history: [], // snapshots
+    anchor: null, // primary selected cell
+    history: [],
   };
 
-  // Cells list (row-major)
   const cells = [];
 
   // Drag
   let isDragging = false;
-  let dragFromCell = null;
   let currentDropCell = null;
 
   // ---------- Utilities ----------
@@ -56,8 +51,9 @@
 
   function setActiveWithin(container, predicate) {
     if (!container) return;
-    const btns = container.querySelectorAll("button");
-    btns.forEach((b) => b.classList.toggle("is-active", !!predicate(b)));
+    container.querySelectorAll("button").forEach((b) => {
+      b.classList.toggle("is-active", !!predicate(b));
+    });
   }
 
   function getCellIndex(row, col) {
@@ -92,8 +88,7 @@
     node.style.backgroundColor = data.color;
 
     if (data.shapeType === "rounded") {
-      const r = `${ROUND_RATIO * 100}%`;
-      node.style.borderRadius = `0 ${r} 0 0`;
+      node.style.borderRadius = `0 ${ROUND_PX}px 0 0`; // top-right rounded
     } else {
       node.style.borderRadius = "0";
     }
@@ -170,10 +165,8 @@
 
     if (state.selected.size === 0) return;
 
-    // anchor is "primary" selected
     if (state.anchor) state.anchor.classList.add("is-selected");
 
-    // rest are multi-selected
     state.selected.forEach((cell) => {
       if (cell !== state.anchor) cell.classList.add("is-multi-selected");
     });
@@ -196,11 +189,7 @@
 
   function selectMany(cellList) {
     state.selected.clear();
-
-    for (const c of cellList) {
-      if (hasShape(c)) state.selected.add(c);
-    }
-
+    for (const c of cellList) if (hasShape(c)) state.selected.add(c);
     state.anchor = state.selected.values().next().value || null;
     updateSelectionClasses();
     syncEditEnabled();
@@ -224,9 +213,8 @@
     if (selectAllBtn) selectAllBtn.disabled = !(inSelectMode && anyFilled);
     if (deselectBtn) deselectBtn.disabled = !(inSelectMode && hasSelection);
 
-    // Per your request: when Select all (group) is active, rotate/mirror/delete must be enabled.
+    // Group selection enables all edit tools (per request)
     const enableEdits = inSelectMode && hasSelection;
-
     if (rotateBtn) rotateBtn.disabled = !enableEdits;
     if (mirrorXBtn) mirrorXBtn.disabled = !enableEdits;
     if (mirrorYBtn) mirrorYBtn.disabled = !enableEdits;
@@ -236,12 +224,8 @@
   // ---------- Mode ----------
   function setMode(mode) {
     state.mode = mode === "select" ? "select" : "stamp";
-
     setActiveWithin(modeBar, (b) => b.dataset.mode === state.mode);
-
-    // keep stamp mode simple
     if (state.mode === "stamp") clearSelection();
-
     syncEditEnabled();
   }
 
@@ -298,8 +282,7 @@
 
     for (let r = startRow; r < endRow; r++) {
       for (let c = startCol; c < endCol; c++) {
-        const idx = getCellIndex(r, c);
-        writeCellData(cells[idx], {
+        writeCellData(cells[getCellIndex(r, c)], {
           shapeType: randomShapeType(),
           color: randomColor(),
           rotation: randomRotation(),
@@ -322,25 +305,7 @@
     const last = state.history.pop();
     if (!last) return;
     restoreSnapshot(last);
-    // keep current mode
     setMode(state.mode);
-  }
-
-  // Group edits: apply to ALL selected cells
-  function applyToSelection(mutator) {
-    if (state.mode !== "select") return;
-    if (state.selected.size === 0) return;
-
-    pushHistory();
-
-    state.selected.forEach((cell) => {
-      const data = readCellData(cell);
-      if (!data) return;
-      mutator(data);
-      writeCellData(cell, data);
-    });
-
-    syncEditEnabled();
   }
 
   function deleteSelection() {
@@ -350,6 +315,102 @@
     pushHistory();
     state.selected.forEach((cell) => writeCellData(cell, null));
     clearSelection();
+  }
+
+  // ---------- Group transforms (mirror/rotate as a GROUP) ----------
+  function selectionBounds(selected) {
+    let minRow = Infinity, maxRow = -Infinity, minCol = Infinity, maxCol = -Infinity;
+
+    selected.forEach((cell) => {
+      const { row, col } = getCellRC(cell);
+      minRow = Math.min(minRow, row);
+      maxRow = Math.max(maxRow, row);
+      minCol = Math.min(minCol, col);
+      maxCol = Math.max(maxCol, col);
+    });
+
+    return { minRow, maxRow, minCol, maxCol };
+  }
+
+  function normalizeAngle(deg) {
+    return ((deg % 360) + 360) % 360;
+  }
+
+  // Reflection flips angle sign in our representation
+  function reflectRotation(deg) {
+    return normalizeAngle(360 - deg);
+  }
+
+  function applyGroupTransform(kind) {
+    if (state.mode !== "select") return;
+    if (state.selected.size === 0) return;
+
+    const items = [];
+    state.selected.forEach((cell) => {
+      const data = readCellData(cell);
+      if (data) items.push({ cell, data });
+    });
+    if (items.length === 0) return;
+
+    const { minRow, maxRow, minCol, maxCol } = selectionBounds(state.selected);
+    const height = maxRow - minRow + 1;
+    const width = maxCol - minCol + 1;
+
+    const destMap = new Map(); // "r,c" -> data
+
+    for (const { cell, data } of items) {
+      const { row, col } = getCellRC(cell);
+      const lr = row - minRow;
+      const lc = col - minCol;
+
+      let nr = lr;
+      let nc = lc;
+
+      const next = { ...data };
+
+      if (kind === "mirrorX") {
+        nc = (width - 1) - lc;
+        next.mirrorX = !next.mirrorX;
+        next.rotation = reflectRotation(next.rotation);
+      } else if (kind === "mirrorY") {
+        nr = (height - 1) - lr;
+        next.mirrorY = !next.mirrorY;
+        next.rotation = reflectRotation(next.rotation);
+      } else if (kind === "rotate") {
+        // Rotate 90° clockwise within the selection bounding box (anchored at top-left)
+        nr = lc;
+        nc = (height - 1) - lr;
+        next.rotation = normalizeAngle(next.rotation + 90);
+      }
+
+      const destRow = minRow + nr;
+      const destCol = minCol + nc;
+
+      // If rotate, selection dims swap; ensure it fits the board
+      if (kind === "rotate") {
+        const newHeight = width;
+        const newWidth = height;
+        if (minRow + newHeight - 1 >= GRID_SIZE || minCol + newWidth - 1 >= GRID_SIZE) return;
+      }
+
+      destMap.set(`${destRow},${destCol}`, next);
+    }
+
+    pushHistory();
+
+    // Clear sources first
+    state.selected.forEach((cell) => writeCellData(cell, null));
+
+    // Write destinations and reselect them
+    const newSelected = [];
+    destMap.forEach((data, key) => {
+      const [r, c] = key.split(",").map(Number);
+      const dest = cells[getCellIndex(r, c)];
+      writeCellData(dest, data);
+      newSelected.push(dest);
+    });
+
+    selectMany(newSelected);
   }
 
   // ---------- Drag & snap ----------
@@ -377,7 +438,6 @@
 
     const dRow = toRow - fromRow;
     const dCol = toCol - fromCol;
-
     if (dRow === 0 && dCol === 0) return null;
 
     const plan = [];
@@ -410,15 +470,14 @@
     });
 
     // Write destinations (replacement behavior)
-    const destCells = [];
+    const newSelected = [];
     plan.forEach((p) => {
       const dest = cells[getCellIndex(p.destRow, p.destCol)];
       writeCellData(dest, p.data);
-      destCells.push(dest);
+      newSelected.push(dest);
     });
 
-    // keep selection on moved cells
-    selectMany(destCells);
+    selectMany(newSelected);
   }
 
   // ---------- Export ----------
@@ -466,7 +525,7 @@
       if (data.shapeType === "square") {
         shapeMarkup = `<rect x="0" y="0" width="${w}" height="${h}" fill="${data.color}" />`;
       } else {
-        const r = CELL_PX * ROUND_RATIO;
+        const r = ROUND_PX;
         const d = [
           `M 0 0`,
           `H ${w - r}`,
@@ -511,7 +570,8 @@ ${shapesSvg.join("\n")}
     URL.revokeObjectURL(url);
   }
 
-  // ---------- Event wiring (delegation) ----------
+  // ---------- Events ----------
+  // Grid click
   gridEl.addEventListener("click", (e) => {
     const cell = e.target.closest(".cell");
     if (!cell) return;
@@ -528,108 +588,11 @@ ${shapesSvg.join("\n")}
       clearSelection();
       return;
     }
+
     selectSingle(cell);
   });
 
-  if (modeBar) {
-    modeBar.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-mode]");
-      if (!btn) return;
-      setMode(btn.dataset.mode);
-    });
-  }
-
-  if (shapeGroup) {
-    shapeGroup.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-shape]");
-      if (!btn) return;
-      state.shapeType = btn.dataset.shape;
-      setActiveWithin(shapeGroup, (b) => b.dataset.shape === state.shapeType);
-    });
-  }
-
-  if (colorGroup) {
-    colorGroup.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-color]");
-      if (!btn) return;
-      state.color = COLORS[btn.dataset.color];
-      setActiveWithin(colorGroup, (b) => b.dataset.color in COLORS && COLORS[b.dataset.color] === state.color);
-    });
-  }
-
-  if (outputRow) {
-    outputRow.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-output]");
-      if (!btn) return;
-      state.outputSize = clampInt(parseInt(btn.dataset.output, 10), 2, 5);
-      setActiveWithin(outputRow, (b) => Number(b.dataset.output) === state.outputSize);
-    });
-  }
-
-  // Bottom actions
-  if (bottomBar) {
-    bottomBar.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-action]");
-      if (!btn) return;
-
-      switch (btn.dataset.action) {
-        case "randomize": randomize(); break;
-        case "back": setMode("stamp"); break;
-        case "undo": undo(); break;
-        case "clear": clearAll(); break;
-        case "download": exportSVG(); break;
-        default: break;
-      }
-    });
-  }
-
-  // Left panel actions are in panel (not bottom bar)
-  document.addEventListener("click", (e) => {
-    const actionBtn = e.target.closest("button[data-action]");
-    if (!actionBtn) return;
-
-    // only handle the left-panel action buttons here
-    const inPicker = actionBtn.closest(".picker-actions");
-    if (!inPicker) return;
-
-    switch (actionBtn.dataset.action) {
-      case "randomize": randomize(); break;
-      case "back": setMode("stamp"); break;
-      default: break;
-    }
-  });
-
-  // Edit actions
-  if (editPanel) {
-    editPanel.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-edit]");
-      if (!btn) return;
-
-      switch (btn.dataset.edit) {
-        case "selectAll": {
-          if (state.mode !== "select") return;
-          const filledCells = cells.filter(hasShape);
-          if (filledCells.length === 0) return;
-          selectMany(filledCells);
-          break;
-        }
-        case "deselect": clearSelection(); break;
-        case "rotate":
-          applyToSelection((d) => { d.rotation = (d.rotation + 90) % 360; });
-          break;
-        case "mirrorX":
-          applyToSelection((d) => { d.mirrorX = !d.mirrorX; });
-          break;
-        case "mirrorY":
-          applyToSelection((d) => { d.mirrorY = !d.mirrorY; });
-          break;
-        case "delete": deleteSelection(); break;
-        default: break;
-      }
-    });
-  }
-
-  // Drag handlers
+  // Pointer drag (select mode)
   gridEl.addEventListener("pointerdown", (e) => {
     if (state.mode !== "select") return;
 
@@ -639,12 +602,9 @@ ${shapesSvg.join("\n")}
     const cell = shape.closest(".cell");
     if (!cell) return;
 
-    // Must start drag from a selected cell
     if (!state.selected.has(cell)) return;
-    if (!state.anchor) return;
 
     isDragging = true;
-    dragFromCell = cell;
     gridEl.setPointerCapture(e.pointerId);
     e.preventDefault();
   });
@@ -668,31 +628,97 @@ ${shapesSvg.join("\n")}
   gridEl.addEventListener("pointerup", (e) => {
     if (!isDragging) return;
 
-    const toCell = cellFromPointer(e.clientX, e.clientY);
-
-    clearDropTarget();
     isDragging = false;
+    const toCell = cellFromPointer(e.clientX, e.clientY);
+    clearDropTarget();
 
-    if (!toCell) {
-      dragFromCell = null;
-      return;
-    }
+    if (!toCell) return;
 
     const plan = planMove(toCell);
-    if (!plan) {
-      dragFromCell = null;
-      return;
-    }
+    if (!plan) return;
 
     commitMove(plan);
-    dragFromCell = null;
   });
 
   gridEl.addEventListener("pointercancel", () => {
     if (!isDragging) return;
     isDragging = false;
     clearDropTarget();
-    dragFromCell = null;
+  });
+
+  // Delegated button handling (modes, picks, outputs, actions, edit)
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+
+    // Mode
+    if (btn.dataset.mode) {
+      setMode(btn.dataset.mode);
+      return;
+    }
+
+    // Shape
+    if (btn.dataset.shape) {
+      state.shapeType = btn.dataset.shape;
+      setActiveWithin(shapeGroup, (b) => b.dataset.shape === state.shapeType);
+      return;
+    }
+
+    // Color
+    if (btn.dataset.color) {
+      state.color = COLORS[btn.dataset.color] || state.color;
+      setActiveWithin(colorGroup, (b) => (COLORS[b.dataset.color] || "") === state.color);
+      return;
+    }
+
+    // Output size
+    if (btn.dataset.output) {
+      state.outputSize = clampInt(parseInt(btn.dataset.output, 10), 2, 5);
+      setActiveWithin(outputRow, (b) => Number(b.dataset.output) === state.outputSize);
+      return;
+    }
+
+    // Left/bottom actions
+    if (btn.dataset.action) {
+      switch (btn.dataset.action) {
+        case "randomize": randomize(); return;
+        case "back": setMode("stamp"); return;
+        case "undo": undo(); return;
+        case "clear": clearAll(); return;
+        case "download": exportSVG(); return;
+        default: return;
+      }
+    }
+
+    // Edit tools
+    if (btn.dataset.edit) {
+      switch (btn.dataset.edit) {
+        case "selectAll": {
+          if (state.mode !== "select") return;
+          const filledCells = cells.filter(hasShape);
+          if (filledCells.length === 0) return;
+          selectMany(filledCells);
+          return;
+        }
+        case "deselect":
+          clearSelection();
+          return;
+        case "rotate":
+          applyGroupTransform("rotate");
+          return;
+        case "mirrorX":
+          applyGroupTransform("mirrorX");
+          return;
+        case "mirrorY":
+          applyGroupTransform("mirrorY");
+          return;
+        case "delete":
+          deleteSelection();
+          return;
+        default:
+          return;
+      }
+    }
   });
 
   // ---------- Init ----------
@@ -700,8 +726,8 @@ ${shapesSvg.join("\n")}
   setMode("stamp");
   syncEditEnabled();
 
-  // Ensure the active states reflect defaults
+  // Reflect defaults in UI
   setActiveWithin(shapeGroup, (b) => b.dataset.shape === state.shapeType);
-  setActiveWithin(colorGroup, (b) => COLORS[b.dataset.color] === state.color);
+  setActiveWithin(colorGroup, (b) => (COLORS[b.dataset.color] || "") === state.color);
   setActiveWithin(outputRow, (b) => Number(b.dataset.output) === state.outputSize);
 })();
