@@ -259,17 +259,32 @@ button:focus-visible{
   width: var(--grid-w);
   height: var(--grid-w);
   position: relative;
-
-  /* dotted frame */
-  border: 1px dotted var(--border-strong);
-  border-radius: 0;                 /* removed rounding */
-
-  /* dotted grid-paper look */
   background: var(--bg);
-  background-image: radial-gradient(circle, var(--grid-dot) var(--grid-dot-size), transparent var(--grid-dot-size));
+
+  /* IMPORTANT: no border, so the grid area stays perfectly divisible */
+  border: 0;
+
+  /* dotted grid-paper look (interior) */
+  background-image: radial-gradient(
+    circle,
+    var(--grid-dot) var(--grid-dot-size),
+    transparent var(--grid-dot-size)
+  );
   background-size: calc(100% / var(--grid-size)) calc(100% / var(--grid-size));
   background-position: center;
 }
+
+/* dotted frame (does NOT affect layout sizing) */
+.grid::before{
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+
+  /* dotted frame */
+  border: 1px dotted var(--grid-dot);
+}
+
 
 .cell{
   position: relative;
