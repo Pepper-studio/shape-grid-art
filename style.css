@@ -282,7 +282,7 @@ button:focus-visible{
   pointer-events: none;
 
   /* dotted frame */
-  border: 1px var(--grid-dot);
+  border: 1px solid var(--grid-dot);
 }
 
 
