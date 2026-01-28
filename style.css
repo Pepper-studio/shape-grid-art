@@ -5,12 +5,9 @@
   --muted: #777;
 
   --border: #e8e8e8;
-  --border-strong: #d8d8d8;
+  --border-strong: rgba(0,0,0,0.18);
 
-  --radius-lg: 16px;
-  --radius-btn: 999px;
-
-  /* Spacing scale (keeps paddings/gaps consistent) */
+  /* Spacing scale */
   --s1: 6px;
   --s2: 10px;
   --s3: 14px;
@@ -22,8 +19,8 @@
   --panel-w: 260px;
   --grid-w: 500px;
 
-  /* Grid */
-  --grid-size: 5;            /* used for background-dot spacing only */
+  /* Grid dots */
+  --grid-size: 5;
   --grid-dot: rgba(0,0,0,0.14);
   --grid-dot-size: 2px;
 
@@ -40,7 +37,7 @@
   --yellow: #ffdd35;
 }
 
-* { box-sizing: border-box; }
+*{ box-sizing: border-box; }
 
 body{
   margin: 0;
@@ -63,13 +60,13 @@ body{
   gap: var(--s4);
 }
 
-/* ---------- Buttons ---------- */
+/* ---------- Buttons (square corners per request) ---------- */
 button{
   font: inherit;
   font-size: 13px;
   line-height: 1;
   padding: 9px 12px;
-  border-radius: var(--radius-btn);
+  border-radius: 0;                 /* removed rounding */
   border: 1px solid var(--btn-border);
   background: var(--btn-bg);
   color: var(--text);
@@ -87,7 +84,6 @@ button:hover:not(:disabled){ background: var(--btn-hover); }
 button:active:not(:disabled){ transform: translateY(1px); }
 button:disabled{ opacity: 0.35; cursor: not-allowed; }
 
-/* Accessible focus */
 button:focus-visible{
   outline: 3px solid rgba(17,17,17,0.18);
   outline-offset: 2px;
@@ -125,17 +121,22 @@ button:focus-visible{
   display: grid;
   grid-template-columns: var(--panel-w) var(--grid-w) var(--panel-w);
   gap: var(--s6);
-  align-items: start;
+  align-items: stretch;              /* helps equal-height columns */
   justify-content: center;
 }
 
-.panel{ display: flex; flex-direction: column; }
+.panel{
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
 
 .panel__inner{
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: 0;                 /* removed rounding */
   padding: var(--s4);
   background: #fff;
+  height: 100%;                      /* fill column height */
 }
 
 .panel__section + .panel__section{
@@ -155,7 +156,8 @@ button:focus-visible{
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--s5);
-  justify-items: center;
+  justify-items: stretch;            /* fit evenly */
+  align-items: start;
 }
 
 .picker-col{
@@ -163,6 +165,7 @@ button:focus-visible{
   flex-direction: column;
   align-items: center;
   gap: var(--s3);
+  min-width: 0;
 }
 
 .picker-title{
@@ -175,13 +178,16 @@ button:focus-visible{
   display: flex;
   flex-direction: column;
   gap: var(--s3);
+  width: 100%;
+  align-items: center;
 }
 
+/* Square corners per request */
 .tile-btn{
   width: 110px;
   height: 110px;
   padding: 0;
-  border-radius: 18px;
+  border-radius: 0;
   border: 1px solid #e1e1e1;
   background: #fff;
   display: grid;
@@ -200,7 +206,10 @@ button:focus-visible{
   background: #d9d9d9;
 }
 .shape-square{ border-radius: 0; }
-.shape-rounded{ border-radius: 0 40% 0 0; }
+
+/* Slightly larger preview rounding (visual match) */
+.shape-rounded{ border-radius: 0 45% 0 0; }
+
 .swatch-blue{ background: var(--blue); }
 .swatch-yellow{ background: var(--yellow); }
 
@@ -237,26 +246,31 @@ button:focus-visible{
 }
 
 /* ---------- Center grid ---------- */
-.center{ display: flex; justify-content: center; }
+.center{
+  display: flex;
+  justify-content: center;
+  align-items: start;
+  width: 100%;
+}
 
 .grid{
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   width: var(--grid-w);
   height: var(--grid-w);
-  background: var(--bg);
   position: relative;
 
   /* dotted frame */
-  border: 0px dotted var(--border-strong);
+  border: 1px dotted var(--border-strong);
+  border-radius: 0;                 /* removed rounding */
 
   /* dotted grid-paper look */
+  background: var(--bg);
   background-image: radial-gradient(circle, var(--grid-dot) var(--grid-dot-size), transparent var(--grid-dot-size));
   background-size: calc(100% / var(--grid-size)) calc(100% / var(--grid-size));
   background-position: center;
 }
 
-/* Cells */
 .cell{
   position: relative;
   cursor: pointer;
@@ -267,7 +281,7 @@ button:focus-visible{
   inset: 0;
 }
 
-/* Selection overlays (single rule + modifiers) */
+/* Selection overlays */
 .cell::after{
   content: "";
   position: absolute;
@@ -301,6 +315,12 @@ button:focus-visible{
   display: flex;
   flex-direction: column;
   gap: var(--s2);
+}
+
+/* Reduce edit button widths by ~30% */
+.panel[aria-label="Edit tools"] .pill-btn{
+  width: 70%;
+  margin: 0 auto;
 }
 
 .divider{
